@@ -10,6 +10,17 @@ on, or uses this code.
 
 package com.articulate.calendar.gui;
 
+import java.awt.Color;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.TimeZone;
+import javax.swing.BorderFactory;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
+import org.joda.time.LocalDate;
+
 /**
  * CalendarFrame is the main window of the application.
  * @author Jeff Thompson, jeff@thefirst.org
@@ -23,6 +34,94 @@ public class CalendarFrame extends javax.swing.JFrame {
   {
     super("Calendar");
     initComponents();
+
+    // Initialize the day panel grid. A month has up to six rows of weeks.
+    for (int iWeek = 0; iWeek < 6; ++iWeek) {
+      ArrayList<DayPanel> week = new ArrayList<>();
+      daysPanelGrid_.add(week);
+
+      for (int iDay = 0; iDay < 7; ++iDay) {
+        DayPanel dayPanel = new DayPanel();
+        week.add(dayPanel);
+        daysPanel_.add(dayPanel.panel);
+      }
+    }
+    setUpDaysPanel();
+
+    pack();
+  }
+
+  /**
+   * Set up the dayPanelGrid_ based on selectedDate_.
+   */
+  private final void
+  setUpDaysPanel()
+  {
+    daysPanelLabel_.setText(selectedDate_.toString("MMMM y"));
+
+    // Date object months starts at 0.
+    LocalDate firstDayOfMonth = LocalDate.fromDateFields
+      (new Date(selectedDate_.getYear(), selectedDate_.getMonthOfYear() - 1, 1));
+    LocalDate lastDayOfLastMonth = firstDayOfMonth.plusDays(-1);
+    LocalDate firstDayOfNextMonth = firstDayOfMonth.plusMonths(1);
+    LocalDate lastDayOfMonth = firstDayOfNextMonth.plusDays(-1);
+
+    LocalDate date = firstDayOfMonth;
+    // Back up to the start of the week.
+    while (date.getDayOfWeek() != startOfWeek_)
+      date = date.plusDays(-1);
+
+    // We'll adjust nWeekRows_ below.
+    nWeekRows_ = 6;
+    for (int iWeek = 0; iWeek < 6; ++iWeek) {
+      ArrayList<DayPanel> week = daysPanelGrid_.get(iWeek);
+
+      for (int iDay = 0; iDay < 7; ++iDay) {
+        DayPanel dayPanel = week.get(iDay);
+
+        if (iWeek >= nWeekRows_)
+          dayPanel.panel.setVisible(false);
+        else {
+          dayPanel.panel.setVisible(true);
+          if (date.equals(lastDayOfLastMonth) ||
+              date.equals(firstDayOfMonth) ||
+              date.equals(lastDayOfMonth) ||
+              date.equals(firstDayOfNextMonth))
+            // Include the month.
+            dayPanel.dayOfMonthLabel.setText(date.toString("MMM d"));
+          else
+            dayPanel.dayOfMonthLabel.setText("" + date.getDayOfMonth());
+
+          if (date.equals(lastDayOfMonth))
+            nWeekRows_ = iWeek + 1;
+        }
+
+        date = date.plusDays(1);
+      }
+    }
+
+    // Set the day panel sizes and locations.
+    daysPanel_ComponentResized(null);
+  }
+
+  /**
+   * A DayPanel holds the main panel for a day plus its contained components.
+   */
+  private static class DayPanel {
+    public DayPanel()
+    {
+      panel.setBorder
+        (BorderFactory.createLineBorder(new Color(200, 200, 200)));
+
+      dayOfMonthLabel.setForeground(new Color(100, 100, 100));
+      dayOfMonthLabel.setVerticalAlignment(SwingConstants.TOP);
+      dayOfMonthLabel.setLocation(1, 0);
+      dayOfMonthLabel.setSize(50, 20);
+      panel.add(dayOfMonthLabel);
+    }
+
+    public final JPanel panel = new JPanel(null);
+    public final JLabel dayOfMonthLabel = new JLabel();
   }
 
   /**
@@ -35,21 +134,154 @@ public class CalendarFrame extends javax.swing.JFrame {
   private void initComponents()
   {
 
+    daysPanel_ = new javax.swing.JPanel();
+    filler1 = new javax.swing.Box.Filler(new java.awt.Dimension(0, 0), new java.awt.Dimension(0, 0), new java.awt.Dimension(0, 32767));
+    decrementButton_ = new javax.swing.JButton();
+    incrementButton_ = new javax.swing.JButton();
+    todayButton_ = new javax.swing.JButton();
+    daysPanelLabel_ = new javax.swing.JLabel();
+
     setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+
+    daysPanel_.addComponentListener(new java.awt.event.ComponentAdapter()
+    {
+      public void componentResized(java.awt.event.ComponentEvent evt)
+      {
+        daysPanel_ComponentResized(evt);
+      }
+    });
+
+    javax.swing.GroupLayout daysPanel_Layout = new javax.swing.GroupLayout(daysPanel_);
+    daysPanel_.setLayout(daysPanel_Layout);
+    daysPanel_Layout.setHorizontalGroup(
+      daysPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+      .addGap(0, 964, Short.MAX_VALUE)
+    );
+    daysPanel_Layout.setVerticalGroup(
+      daysPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+      .addGap(0, 507, Short.MAX_VALUE)
+    );
+
+    decrementButton_.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+    decrementButton_.setText("<");
+    decrementButton_.addActionListener(new java.awt.event.ActionListener()
+    {
+      public void actionPerformed(java.awt.event.ActionEvent evt)
+      {
+        decrementButton_ActionPerformed(evt);
+      }
+    });
+
+    incrementButton_.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+    incrementButton_.setText(">");
+    incrementButton_.addActionListener(new java.awt.event.ActionListener()
+    {
+      public void actionPerformed(java.awt.event.ActionEvent evt)
+      {
+        incrementButton_ActionPerformed(evt);
+      }
+    });
+
+    todayButton_.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+    todayButton_.setText("Today");
+    todayButton_.addActionListener(new java.awt.event.ActionListener()
+    {
+      public void actionPerformed(java.awt.event.ActionEvent evt)
+      {
+        todayButton_ActionPerformed(evt);
+      }
+    });
+
+    daysPanelLabel_.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+    daysPanelLabel_.setText("January 2016");
 
     javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
     getContentPane().setLayout(layout);
     layout.setHorizontalGroup(
       layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGap(0, 860, Short.MAX_VALUE)
+      .addGroup(layout.createSequentialGroup()
+        .addGap(88, 88, 88)
+        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+          .addGroup(layout.createSequentialGroup()
+            .addComponent(decrementButton_)
+            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+            .addComponent(todayButton_)
+            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+            .addComponent(incrementButton_)
+            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+            .addComponent(daysPanelLabel_, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(filler1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+            .addGap(446, 446, 446))
+          .addComponent(daysPanel_, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
     );
     layout.setVerticalGroup(
       layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGap(0, 521, Short.MAX_VALUE)
+      .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+          .addGroup(layout.createSequentialGroup()
+            .addGap(46, 46, 46)
+            .addComponent(filler1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+            .addGap(35, 35, 35))
+          .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+            .addContainerGap()
+            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+              .addComponent(decrementButton_)
+              .addComponent(incrementButton_)
+              .addComponent(todayButton_)
+              .addComponent(daysPanelLabel_))
+            .addGap(26, 26, 26)))
+        .addComponent(daysPanel_, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
     );
 
     pack();
   }// </editor-fold>//GEN-END:initComponents
+
+  private void daysPanel_ComponentResized(java.awt.event.ComponentEvent evt)//GEN-FIRST:event_daysPanel_ComponentResized
+  {//GEN-HEADEREND:event_daysPanel_ComponentResized
+    if (nWeekRows_ == 0)
+      // Not initialized yet.
+      return;
+
+    int width = daysPanel_.getSize().width;
+    int height = daysPanel_.getSize().height;
+    if (width <= 0 || height <= 0)
+      // We don't expect this to happen. Nothing to show.
+      return;
+
+    int nDaysInWeek = 7;
+    int dayPanelWidth = width / nDaysInWeek;
+    int dayPanelHeight = height / nWeekRows_;
+
+    // Resize all visible day panels.
+    for (int iWeek = 0; iWeek < nWeekRows_; ++iWeek) {
+      ArrayList<DayPanel> week = daysPanelGrid_.get(iWeek);
+
+      for (int iDay = 0; iDay < 7; ++iDay) {
+        DayPanel dayPanel = week.get(iDay);
+        dayPanel.panel.setSize(dayPanelWidth, dayPanelHeight);
+        dayPanel.panel.setLocation(dayPanelWidth * iDay, dayPanelHeight * iWeek);
+      }
+    }
+  }//GEN-LAST:event_daysPanel_ComponentResized
+
+  private void decrementButton_ActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_decrementButton_ActionPerformed
+  {//GEN-HEADEREND:event_decrementButton_ActionPerformed
+    selectedDate_ = selectedDate_.plusMonths(-1);
+    setUpDaysPanel();
+  }//GEN-LAST:event_decrementButton_ActionPerformed
+
+  private void incrementButton_ActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_incrementButton_ActionPerformed
+  {//GEN-HEADEREND:event_incrementButton_ActionPerformed
+    selectedDate_ = selectedDate_.plusMonths(1);
+    setUpDaysPanel();
+  }//GEN-LAST:event_incrementButton_ActionPerformed
+
+  private void todayButton_ActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_todayButton_ActionPerformed
+  {//GEN-HEADEREND:event_todayButton_ActionPerformed
+    selectedDate_ = LocalDate.now();
+    setUpDaysPanel();
+  }//GEN-LAST:event_todayButton_ActionPerformed
 
   /**
    * @param args the command line arguments
@@ -89,5 +321,15 @@ public class CalendarFrame extends javax.swing.JFrame {
   }
 
   // Variables declaration - do not modify//GEN-BEGIN:variables
+  private javax.swing.JLabel daysPanelLabel_;
+  private javax.swing.JPanel daysPanel_;
+  private javax.swing.JButton decrementButton_;
+  private javax.swing.Box.Filler filler1;
+  private javax.swing.JButton incrementButton_;
+  private javax.swing.JButton todayButton_;
   // End of variables declaration//GEN-END:variables
+  private final ArrayList<ArrayList<DayPanel>> daysPanelGrid_ = new ArrayList();
+  private final int startOfWeek_ = 2;
+  private LocalDate selectedDate_ = LocalDate.now();
+  private int nWeekRows_ = 0;
 }
