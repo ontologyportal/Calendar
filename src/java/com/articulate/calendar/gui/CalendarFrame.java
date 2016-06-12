@@ -11,10 +11,9 @@ on, or uses this code.
 package com.articulate.calendar.gui;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
-import java.util.TimeZone;
 import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -46,8 +45,20 @@ public class CalendarFrame extends javax.swing.JFrame {
         daysPanel_.add(dayPanel.panel);
       }
     }
-    setUpDaysPanel();
 
+    // Initialize the headers.
+    for (int i = 0; i < 7; ++i) {
+      JLabel header = new JLabel();
+      daysPanelHeaders_.add(header);
+
+      header.setBorder(BorderFactory.createLineBorder(DayPanel.borderColor));
+      header.setHorizontalAlignment(SwingConstants.CENTER);
+      header.setFont(new Font("Tahoma", 0, 11));
+      // Add to whatever is the parent of daysPanel_.
+      daysPanel_.getParent().add(header);
+    }
+
+    setUpDaysPanel();
     pack();
   }
 
@@ -79,20 +90,28 @@ public class CalendarFrame extends javax.swing.JFrame {
       for (int iDay = 0; iDay < 7; ++iDay) {
         DayPanel dayPanel = week.get(iDay);
 
+        if (iWeek == 0)
+          // Set the header using DateTime.toString which can be localized.
+          // Debug: Does DateTime have a bug? Need to adjust.
+          daysPanelHeaders_.get(iDay).setText(date.plusDays(-1).toString("EEEE"));
+
         if (iWeek >= nWeekRows_)
           dayPanel.panel.setVisible(false);
         else {
           dayPanel.panel.setVisible(true);
+
+          // Set the label.
           if (date.equals(lastDayOfLastMonth) ||
               date.equals(firstDayOfMonth) ||
               date.equals(lastDayOfMonth) ||
               date.equals(firstDayOfNextMonth))
             // Include the month.
-            dayPanel.dayOfMonthLabel.setText(date.toString("MMM d"));
+            dayPanel.label.setText(date.toString("MMM d"));
           else
-            dayPanel.dayOfMonthLabel.setText("" + date.getDayOfMonth());
+            dayPanel.label.setText("" + date.getDayOfMonth());
 
           if (date.equals(lastDayOfMonth))
+            // This is the last row.
             nWeekRows_ = iWeek + 1;
         }
 
@@ -110,18 +129,18 @@ public class CalendarFrame extends javax.swing.JFrame {
   private static class DayPanel {
     public DayPanel()
     {
-      panel.setBorder
-        (BorderFactory.createLineBorder(new Color(200, 200, 200)));
+      panel.setBorder(BorderFactory.createLineBorder(borderColor));
 
-      dayOfMonthLabel.setForeground(new Color(100, 100, 100));
-      dayOfMonthLabel.setVerticalAlignment(SwingConstants.TOP);
-      dayOfMonthLabel.setLocation(1, 0);
-      dayOfMonthLabel.setSize(50, 20);
-      panel.add(dayOfMonthLabel);
+      label.setForeground(new Color(100, 100, 100));
+      label.setVerticalAlignment(SwingConstants.TOP);
+      label.setLocation(1, 0);
+      label.setSize(50, 20);
+      panel.add(label);
     }
 
     public final JPanel panel = new JPanel(null);
-    public final JLabel dayOfMonthLabel = new JLabel();
+    public final JLabel label = new JLabel();
+    public static final Color borderColor = new Color(200, 200, 200);
   }
 
   /**
@@ -263,6 +282,16 @@ public class CalendarFrame extends javax.swing.JFrame {
         dayPanel.panel.setLocation(dayPanelWidth * iDay, dayPanelHeight * iWeek);
       }
     }
+
+    // Resize the headers.
+    int headerHeight = 20;
+    int headerY = daysPanel_.getLocation().y - headerHeight;
+    int firstHeaderX = daysPanel_.getLocation().x;
+    for (int i = 0; i < 7; ++i) {
+      JLabel header = daysPanelHeaders_.get(i);
+      header.setSize(dayPanelWidth, headerHeight);
+      header.setLocation(firstHeaderX + dayPanelWidth * i, headerY);
+    }
   }//GEN-LAST:event_daysPanel_ComponentResized
 
   private void decrementButton_ActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_decrementButton_ActionPerformed
@@ -329,6 +358,7 @@ public class CalendarFrame extends javax.swing.JFrame {
   private javax.swing.JButton todayButton_;
   // End of variables declaration//GEN-END:variables
   private final ArrayList<ArrayList<DayPanel>> daysPanelGrid_ = new ArrayList();
+  private final ArrayList<JLabel> daysPanelHeaders_ = new ArrayList();
   private final int startOfWeek_ = 2;
   private LocalDate selectedDate_ = LocalDate.now();
   private int nWeekRows_ = 0;
