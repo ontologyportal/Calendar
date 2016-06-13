@@ -93,7 +93,7 @@ public class CalendarFrame extends javax.swing.JFrame {
         if (iWeek == 0)
           // Set the header using DateTime.toString which can be localized.
           // Debug: Does DateTime have a bug? Need to adjust.
-          daysPanelHeaders_.get(iDay).setText(date.plusDays(-1).toString("EEEE"));
+          daysPanelHeaders_.get(iDay).setText(dayOfWeek_[date.getDayOfWeek()]);
 
         if (iWeek >= nWeekRows_)
           dayPanel.panel.setVisible(false);
@@ -362,4 +362,8 @@ public class CalendarFrame extends javax.swing.JFrame {
   private final int startOfWeek_ = 2;
   private LocalDate selectedDate_ = LocalDate.now();
   private int nWeekRows_ = 0;
+  // These need to be localized. LocalDate.toString("c") isn't supported and
+  // LocalDate("EEEE") seems to return the wrong value.
+  private static String[] dayOfWeek_ = new String[]
+    { null, "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 }
