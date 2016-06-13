@@ -1,1 +1,1 @@
-mvn exec:java -Dexec.mainClass="com.articulate.calendar.CalendarApp"
+mvn compile exec:java -Dexec.mainClass="com.articulate.calendar.CalendarApp"
