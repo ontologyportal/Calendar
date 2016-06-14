@@ -1,0 +1,3 @@
+[submodule "submodules/sigmakee"]
+	path = submodules/sigmakee
+	url = https://github.com/ontologyportal/sigmakee
