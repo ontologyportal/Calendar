@@ -153,33 +153,60 @@ public class CalendarFrame extends javax.swing.JFrame {
   private void initComponents()
   {
 
-    daysPanel_ = new javax.swing.JPanel();
-    filler1 = new javax.swing.Box.Filler(new java.awt.Dimension(0, 0), new java.awt.Dimension(0, 0), new java.awt.Dimension(0, 32767));
+    topHorizontalSplitPane_ = new javax.swing.JSplitPane();
+    calendarControlsPanel_ = new javax.swing.JPanel();
+    calendarAndTasksHorizontalSplitPane_ = new javax.swing.JSplitPane();
+    tasksPanel_ = new javax.swing.JPanel();
+    eventsAndCalendarVerticalSplitPane_ = new javax.swing.JSplitPane();
+    calendarPanel_ = new javax.swing.JPanel();
     decrementButton_ = new javax.swing.JButton();
-    incrementButton_ = new javax.swing.JButton();
     todayButton_ = new javax.swing.JButton();
+    incrementButton_ = new javax.swing.JButton();
     daysPanelLabel_ = new javax.swing.JLabel();
+    daysPanel_ = new javax.swing.JPanel();
+    eventsPanel_ = new javax.swing.JPanel();
 
     setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-    daysPanel_.addComponentListener(new java.awt.event.ComponentAdapter()
+    topHorizontalSplitPane_.setDividerLocation(100);
+
+    javax.swing.GroupLayout calendarControlsPanel_Layout = new javax.swing.GroupLayout(calendarControlsPanel_);
+    calendarControlsPanel_.setLayout(calendarControlsPanel_Layout);
+    calendarControlsPanel_Layout.setHorizontalGroup(
+      calendarControlsPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+      .addGap(0, 99, Short.MAX_VALUE)
+    );
+    calendarControlsPanel_Layout.setVerticalGroup(
+      calendarControlsPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+      .addGap(0, 687, Short.MAX_VALUE)
+    );
+
+    topHorizontalSplitPane_.setLeftComponent(calendarControlsPanel_);
+
+    calendarAndTasksHorizontalSplitPane_.setDividerLocation(800);
+    calendarAndTasksHorizontalSplitPane_.addComponentListener(new java.awt.event.ComponentAdapter()
     {
       public void componentResized(java.awt.event.ComponentEvent evt)
       {
-        daysPanel_ComponentResized(evt);
+        calendarAndTasksHorizontalSplitPane_ComponentResized(evt);
       }
     });
 
-    javax.swing.GroupLayout daysPanel_Layout = new javax.swing.GroupLayout(daysPanel_);
-    daysPanel_.setLayout(daysPanel_Layout);
-    daysPanel_Layout.setHorizontalGroup(
-      daysPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGap(0, 964, Short.MAX_VALUE)
+    javax.swing.GroupLayout tasksPanel_Layout = new javax.swing.GroupLayout(tasksPanel_);
+    tasksPanel_.setLayout(tasksPanel_Layout);
+    tasksPanel_Layout.setHorizontalGroup(
+      tasksPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+      .addGap(0, 150, Short.MAX_VALUE)
     );
-    daysPanel_Layout.setVerticalGroup(
-      daysPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGap(0, 507, Short.MAX_VALUE)
+    tasksPanel_Layout.setVerticalGroup(
+      tasksPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+      .addGap(0, 685, Short.MAX_VALUE)
     );
+
+    calendarAndTasksHorizontalSplitPane_.setRightComponent(tasksPanel_);
+
+    eventsAndCalendarVerticalSplitPane_.setDividerLocation(100);
+    eventsAndCalendarVerticalSplitPane_.setOrientation(javax.swing.JSplitPane.VERTICAL_SPLIT);
 
     decrementButton_.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
     decrementButton_.setText("<");
@@ -188,16 +215,6 @@ public class CalendarFrame extends javax.swing.JFrame {
       public void actionPerformed(java.awt.event.ActionEvent evt)
       {
         decrementButton_ActionPerformed(evt);
-      }
-    });
-
-    incrementButton_.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
-    incrementButton_.setText(">");
-    incrementButton_.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(java.awt.event.ActionEvent evt)
-      {
-        incrementButton_ActionPerformed(evt);
       }
     });
 
@@ -211,46 +228,95 @@ public class CalendarFrame extends javax.swing.JFrame {
       }
     });
 
+    incrementButton_.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+    incrementButton_.setText(">");
+    incrementButton_.addActionListener(new java.awt.event.ActionListener()
+    {
+      public void actionPerformed(java.awt.event.ActionEvent evt)
+      {
+        incrementButton_ActionPerformed(evt);
+      }
+    });
+
     daysPanelLabel_.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
     daysPanelLabel_.setText("January 2016");
+
+    daysPanel_.addComponentListener(new java.awt.event.ComponentAdapter()
+    {
+      public void componentResized(java.awt.event.ComponentEvent evt)
+      {
+        daysPanel_ComponentResized(evt);
+      }
+    });
+
+    javax.swing.GroupLayout daysPanel_Layout = new javax.swing.GroupLayout(daysPanel_);
+    daysPanel_.setLayout(daysPanel_Layout);
+    daysPanel_Layout.setHorizontalGroup(
+      daysPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+      .addGap(0, 0, Short.MAX_VALUE)
+    );
+    daysPanel_Layout.setVerticalGroup(
+      daysPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+      .addGap(0, 524, Short.MAX_VALUE)
+    );
+
+    javax.swing.GroupLayout calendarPanel_Layout = new javax.swing.GroupLayout(calendarPanel_);
+    calendarPanel_.setLayout(calendarPanel_Layout);
+    calendarPanel_Layout.setHorizontalGroup(
+      calendarPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+      .addGroup(calendarPanel_Layout.createSequentialGroup()
+        .addGap(5, 5, 5)
+        .addComponent(decrementButton_)
+        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+        .addComponent(todayButton_)
+        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+        .addComponent(incrementButton_)
+        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+        .addComponent(daysPanelLabel_, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+        .addContainerGap(507, Short.MAX_VALUE))
+      .addComponent(daysPanel_, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+    );
+    calendarPanel_Layout.setVerticalGroup(
+      calendarPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+      .addGroup(calendarPanel_Layout.createSequentialGroup()
+        .addGap(5, 5, 5)
+        .addGroup(calendarPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+          .addComponent(decrementButton_)
+          .addComponent(todayButton_)
+          .addComponent(incrementButton_)
+          .addComponent(daysPanelLabel_))
+        .addGap(27, 27, 27)
+        .addComponent(daysPanel_, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+    );
+
+    eventsAndCalendarVerticalSplitPane_.setBottomComponent(calendarPanel_);
+
+    javax.swing.GroupLayout eventsPanel_Layout = new javax.swing.GroupLayout(eventsPanel_);
+    eventsPanel_.setLayout(eventsPanel_Layout);
+    eventsPanel_Layout.setHorizontalGroup(
+      eventsPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+      .addGap(0, 797, Short.MAX_VALUE)
+    );
+    eventsPanel_Layout.setVerticalGroup(
+      eventsPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+      .addGap(0, 99, Short.MAX_VALUE)
+    );
+
+    eventsAndCalendarVerticalSplitPane_.setLeftComponent(eventsPanel_);
+
+    calendarAndTasksHorizontalSplitPane_.setLeftComponent(eventsAndCalendarVerticalSplitPane_);
+
+    topHorizontalSplitPane_.setRightComponent(calendarAndTasksHorizontalSplitPane_);
 
     javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
     getContentPane().setLayout(layout);
     layout.setHorizontalGroup(
       layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGroup(layout.createSequentialGroup()
-        .addGap(88, 88, 88)
-        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-          .addGroup(layout.createSequentialGroup()
-            .addComponent(decrementButton_)
-            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-            .addComponent(todayButton_)
-            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-            .addComponent(incrementButton_)
-            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-            .addComponent(daysPanelLabel_, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
-            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-            .addComponent(filler1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-            .addGap(446, 446, 446))
-          .addComponent(daysPanel_, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+      .addComponent(topHorizontalSplitPane_)
     );
     layout.setVerticalGroup(
       layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-          .addGroup(layout.createSequentialGroup()
-            .addGap(46, 46, 46)
-            .addComponent(filler1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-            .addGap(35, 35, 35))
-          .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-            .addContainerGap()
-            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-              .addComponent(decrementButton_)
-              .addComponent(incrementButton_)
-              .addComponent(todayButton_)
-              .addComponent(daysPanelLabel_))
-            .addGap(26, 26, 26)))
-        .addComponent(daysPanel_, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+      .addComponent(topHorizontalSplitPane_)
     );
 
     pack();
@@ -312,6 +378,21 @@ public class CalendarFrame extends javax.swing.JFrame {
     setUpDaysPanel();
   }//GEN-LAST:event_todayButton_ActionPerformed
 
+  private void calendarAndTasksHorizontalSplitPane_ComponentResized(java.awt.event.ComponentEvent evt)//GEN-FIRST:event_calendarAndTasksHorizontalSplitPane_ComponentResized
+  {//GEN-HEADEREND:event_calendarAndTasksHorizontalSplitPane_ComponentResized
+    // On the first call, we just save the value.
+    if (calendarAndTasksHorizontalSplitPanePreviousWidth_ >= 0) {
+      int deltaWidth = calendarAndTasksHorizontalSplitPane_.getSize().width -
+        calendarAndTasksHorizontalSplitPanePreviousWidth_;
+      int newDividerLocation =
+        calendarAndTasksHorizontalSplitPane_.getDividerLocation() + deltaWidth;
+      calendarAndTasksHorizontalSplitPane_.setDividerLocation(newDividerLocation);
+    }
+
+    calendarAndTasksHorizontalSplitPanePreviousWidth_ =
+      calendarAndTasksHorizontalSplitPane_.getSize().width;
+  }//GEN-LAST:event_calendarAndTasksHorizontalSplitPane_ComponentResized
+
   /**
    * @param args the command line arguments
    */
@@ -350,18 +431,25 @@ public class CalendarFrame extends javax.swing.JFrame {
   }
 
   // Variables declaration - do not modify//GEN-BEGIN:variables
+  private javax.swing.JSplitPane calendarAndTasksHorizontalSplitPane_;
+  private javax.swing.JPanel calendarControlsPanel_;
+  private javax.swing.JPanel calendarPanel_;
   private javax.swing.JLabel daysPanelLabel_;
   private javax.swing.JPanel daysPanel_;
   private javax.swing.JButton decrementButton_;
-  private javax.swing.Box.Filler filler1;
+  private javax.swing.JSplitPane eventsAndCalendarVerticalSplitPane_;
+  private javax.swing.JPanel eventsPanel_;
   private javax.swing.JButton incrementButton_;
+  private javax.swing.JPanel tasksPanel_;
   private javax.swing.JButton todayButton_;
+  private javax.swing.JSplitPane topHorizontalSplitPane_;
   // End of variables declaration//GEN-END:variables
   private final ArrayList<ArrayList<DayPanel>> daysPanelGrid_ = new ArrayList();
   private final ArrayList<JLabel> daysPanelHeaders_ = new ArrayList();
   private final int startOfWeek_ = 2;
   private LocalDate selectedDate_ = LocalDate.now();
   private int nWeekRows_ = 0;
+  private int calendarAndTasksHorizontalSplitPanePreviousWidth_ = -1;
   // These need to be localized. LocalDate.toString("c") isn't supported and
   // LocalDate("EEEE") seems to return the wrong value.
   private static String[] dayOfWeek_ = new String[]
