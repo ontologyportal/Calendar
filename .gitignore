@@ -5,6 +5,9 @@
 /target
 /examples/target
 
+# Sigma temp files
+/EBatchConfig.txt
+
 # JUnit output
 /TEST*.xml
 
@@ -13,3 +16,6 @@
 
 # Emacs temp files
 *~
+
+# NetBeans files
+/nbactions.xml
