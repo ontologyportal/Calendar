@@ -10,15 +10,25 @@ on, or uses this code.
 
 package com.articulate.calendar.gui;
 
+import com.articulate.calendar.CalendarPreferences;
+import com.articulate.sigma.Formula;
+import com.articulate.sigma.KB;
 import java.awt.Color;
+import java.awt.Container;
 import java.awt.Font;
 import java.util.ArrayList;
-import java.util.Date;
+import java.util.Calendar;
+import java.util.HashSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javafx.scene.control.DatePicker;
 import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
-import org.joda.time.LocalDate;
+import javax.swing.DefaultListModel;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 /**
  * CalendarFrame is the main window of the application.
@@ -29,9 +39,13 @@ public class CalendarFrame extends javax.swing.JFrame {
   /**
    * Creates a CalendarFrame.
    */
-  public CalendarFrame()
+  public CalendarFrame
+    (CalendarPreferences preferences, KB kb)
   {
     super("Calendar");
+    preferences_ = preferences;
+    kb_ = kb;
+
     initComponents();
 
     // Initialize the day panel grid. A month has up to six rows of weeks.
@@ -42,7 +56,7 @@ public class CalendarFrame extends javax.swing.JFrame {
       for (int iDay = 0; iDay < 7; ++iDay) {
         DayPanel dayPanel = new DayPanel();
         week.add(dayPanel);
-        daysPanel_.add(dayPanel.panel);
+        dayPanel.addTo(daysPanel_);
       }
     }
 
@@ -51,36 +65,49 @@ public class CalendarFrame extends javax.swing.JFrame {
       JLabel header = new JLabel();
       daysPanelHeaders_.add(header);
 
-      header.setBorder(BorderFactory.createLineBorder(DayPanel.borderColor));
+      header.setBorder(BorderFactory.createLineBorder(DayPanel.BORDER_COLOR));
       header.setHorizontalAlignment(SwingConstants.CENTER);
       header.setFont(new Font("Tahoma", 0, 11));
       // Add to whatever is the parent of daysPanel_.
       daysPanel_.getParent().add(header);
     }
 
+    eventsList_.setModel(eventsListModel_);
+
     setUpDaysPanel();
+
+    /* debug
+    datePicker_ = new DatePicker();
+    datePicker_.setValue(selectedDate_);
+    */
+
     pack();
   }
 
   /**
    * Set up the dayPanelGrid_ based on selectedDate_.
    */
-  private final void
+  private void
   setUpDaysPanel()
   {
-    daysPanelLabel_.setText(selectedDate_.toString("MMMM y"));
+    daysPanelLabel_.setText(selectedDate_.format(monthAndYearFormatter_));
 
-    // Date object months starts at 0.
-    LocalDate firstDayOfMonth = LocalDate.fromDateFields
-      (new Date(selectedDate_.getYear(), selectedDate_.getMonthOfYear() - 1, 1));
+    LocalDate firstDayOfMonth = LocalDate.of
+      (selectedDate_.getYear(), selectedDate_.getMonthValue(), 1);
     LocalDate lastDayOfLastMonth = firstDayOfMonth.plusDays(-1);
     LocalDate firstDayOfNextMonth = firstDayOfMonth.plusMonths(1);
     LocalDate lastDayOfMonth = firstDayOfNextMonth.plusDays(-1);
 
     LocalDate date = firstDayOfMonth;
     // Back up to the start of the week.
-    while (date.getDayOfWeek() != startOfWeek_)
+    while (date.getDayOfWeek() != preferences_.getStartOfWeek())
       date = date.plusDays(-1);
+
+    Calendar calendar = Calendar.getInstance(preferences_.getTimeZone());
+    // Calendar object: months start at 0.
+    calendar.set(date.getYear(), date.getMonthValue() - 1, date.getDayOfMonth());
+    long dateBeginUtcMillis = calendar.getTimeInMillis();
+    long nextDateBeginUtcMillis;
 
     // We'll adjust nWeekRows_ below.
     nWeekRows_ = 6;
@@ -90,15 +117,23 @@ public class CalendarFrame extends javax.swing.JFrame {
       for (int iDay = 0; iDay < 7; ++iDay) {
         DayPanel dayPanel = week.get(iDay);
 
+        // To know the end of this date, get the beginning of the next date. We
+        // do this instead of adding 24 hours because of daylight saving time.
+        LocalDate nextDate = date.plusDays(1);
+        calendar.clear();
+        // Calendar object: months start at 0.
+        calendar.set
+          (nextDate.getYear(), nextDate.getMonthValue() - 1, nextDate.getDayOfMonth());
+        nextDateBeginUtcMillis = calendar.getTimeInMillis();
+
         if (iWeek == 0)
-          // Set the header using DateTime.toString which can be localized.
-          // Debug: Does DateTime have a bug? Need to adjust.
-          daysPanelHeaders_.get(iDay).setText(dayOfWeek_[date.getDayOfWeek()]);
+          // Set the header using LocalDate.format which can be localized.
+          daysPanelHeaders_.get(iDay).setText(date.format(dayOfWeekFormatter_));
 
         if (iWeek >= nWeekRows_)
-          dayPanel.panel.setVisible(false);
+          dayPanel.setVisible(false);
         else {
-          dayPanel.panel.setVisible(true);
+          dayPanel.setVisible(true);
 
           // Set the label.
           if (date.equals(lastDayOfLastMonth) ||
@@ -106,41 +141,23 @@ public class CalendarFrame extends javax.swing.JFrame {
               date.equals(lastDayOfMonth) ||
               date.equals(firstDayOfNextMonth))
             // Include the month.
-            dayPanel.label.setText(date.toString("MMM d"));
+            dayPanel.setDayText(date.format(monthAndDayFormatter_));
           else
-            dayPanel.label.setText("" + date.getDayOfMonth());
+            dayPanel.setDayText("" + date.getDayOfMonth());
 
           if (date.equals(lastDayOfMonth))
             // This is the last row.
             nWeekRows_ = iWeek + 1;
         }
 
-        date = date.plusDays(1);
+        // Get ready for the next iteration.
+        date = nextDate;
+        dateBeginUtcMillis = nextDateBeginUtcMillis;
       }
     }
 
     // Set the day panel sizes and locations.
     daysPanel_ComponentResized(null);
-  }
-
-  /**
-   * A DayPanel holds the main panel for a day plus its contained components.
-   */
-  private static class DayPanel {
-    public DayPanel()
-    {
-      panel.setBorder(BorderFactory.createLineBorder(borderColor));
-
-      label.setForeground(new Color(100, 100, 100));
-      label.setVerticalAlignment(SwingConstants.TOP);
-      label.setLocation(1, 0);
-      label.setSize(50, 20);
-      panel.add(label);
-    }
-
-    public final JPanel panel = new JPanel(null);
-    public final JLabel label = new JLabel();
-    public static final Color borderColor = new Color(200, 200, 200);
   }
 
   /**
@@ -165,6 +182,8 @@ public class CalendarFrame extends javax.swing.JFrame {
     daysPanelLabel_ = new javax.swing.JLabel();
     daysPanel_ = new javax.swing.JPanel();
     eventsPanel_ = new javax.swing.JPanel();
+    eventsScrollPane_ = new javax.swing.JScrollPane();
+    eventsList_ = new javax.swing.JList<>();
 
     setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -239,7 +258,7 @@ public class CalendarFrame extends javax.swing.JFrame {
     });
 
     daysPanelLabel_.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
-    daysPanelLabel_.setText("January 2016");
+    daysPanelLabel_.setText("September 2016");
 
     daysPanel_.addComponentListener(new java.awt.event.ComponentAdapter()
     {
@@ -272,8 +291,8 @@ public class CalendarFrame extends javax.swing.JFrame {
         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
         .addComponent(incrementButton_)
         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-        .addComponent(daysPanelLabel_, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
-        .addContainerGap(507, Short.MAX_VALUE))
+        .addComponent(daysPanelLabel_, javax.swing.GroupLayout.PREFERRED_SIZE, 107, javax.swing.GroupLayout.PREFERRED_SIZE)
+        .addContainerGap(520, Short.MAX_VALUE))
       .addComponent(daysPanel_, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
     );
     calendarPanel_Layout.setVerticalGroup(
@@ -291,15 +310,21 @@ public class CalendarFrame extends javax.swing.JFrame {
 
     eventsAndCalendarVerticalSplitPane_.setBottomComponent(calendarPanel_);
 
+    eventsScrollPane_.setBorder(null);
+
+    eventsList_.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+    eventsList_.setToolTipText("");
+    eventsScrollPane_.setViewportView(eventsList_);
+
     javax.swing.GroupLayout eventsPanel_Layout = new javax.swing.GroupLayout(eventsPanel_);
     eventsPanel_.setLayout(eventsPanel_Layout);
     eventsPanel_Layout.setHorizontalGroup(
       eventsPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGap(0, 797, Short.MAX_VALUE)
+      .addComponent(eventsScrollPane_, javax.swing.GroupLayout.DEFAULT_SIZE, 797, Short.MAX_VALUE)
     );
     eventsPanel_Layout.setVerticalGroup(
       eventsPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGap(0, 99, Short.MAX_VALUE)
+      .addComponent(eventsScrollPane_, javax.swing.GroupLayout.DEFAULT_SIZE, 99, Short.MAX_VALUE)
     );
 
     eventsAndCalendarVerticalSplitPane_.setLeftComponent(eventsPanel_);
@@ -344,8 +369,8 @@ public class CalendarFrame extends javax.swing.JFrame {
 
       for (int iDay = 0; iDay < 7; ++iDay) {
         DayPanel dayPanel = week.get(iDay);
-        dayPanel.panel.setSize(dayPanelWidth, dayPanelHeight);
-        dayPanel.panel.setLocation(dayPanelWidth * iDay, dayPanelHeight * iWeek);
+        dayPanel.setSize(dayPanelWidth, dayPanelHeight);
+        dayPanel.setLocation(dayPanelWidth * iDay, dayPanelHeight * iWeek);
       }
     }
 
@@ -425,7 +450,8 @@ public class CalendarFrame extends javax.swing.JFrame {
     java.awt.EventQueue.invokeLater(new Runnable() {
       public void run()
       {
-        new CalendarFrame().setVisible(true);
+        new CalendarFrame
+          (new CalendarPreferences(), null).setVisible(true);
       }
     });
   }
@@ -438,20 +464,78 @@ public class CalendarFrame extends javax.swing.JFrame {
   private javax.swing.JPanel daysPanel_;
   private javax.swing.JButton decrementButton_;
   private javax.swing.JSplitPane eventsAndCalendarVerticalSplitPane_;
+  private javax.swing.JList<String> eventsList_;
   private javax.swing.JPanel eventsPanel_;
+  private javax.swing.JScrollPane eventsScrollPane_;
   private javax.swing.JButton incrementButton_;
   private javax.swing.JPanel tasksPanel_;
   private javax.swing.JButton todayButton_;
   private javax.swing.JSplitPane topHorizontalSplitPane_;
   // End of variables declaration//GEN-END:variables
+  private final CalendarPreferences preferences_;
+  private final KB kb_;
+  private final DefaultListModel<String> eventsListModel_ = new DefaultListModel<>();
   private final ArrayList<ArrayList<DayPanel>> daysPanelGrid_ = new ArrayList();
   private final ArrayList<JLabel> daysPanelHeaders_ = new ArrayList();
-  private final int startOfWeek_ = 2;
   private LocalDate selectedDate_ = LocalDate.now();
   private int nWeekRows_ = 0;
   private int calendarAndTasksHorizontalSplitPanePreviousWidth_ = -1;
-  // These need to be localized. LocalDate.toString("c") isn't supported and
-  // LocalDate("EEEE") seems to return the wrong value.
-  private static String[] dayOfWeek_ = new String[]
-    { null, "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+  private DatePicker datePicker_;
+  private static final DateTimeFormatter monthAndYearFormatter_ =
+    DateTimeFormatter.ofPattern("MMMM y");
+  private static final DateTimeFormatter monthAndDayFormatter_ =
+    DateTimeFormatter.ofPattern("MMM d");
+  private static final DateTimeFormatter dayOfWeekFormatter_ =
+    DateTimeFormatter.ofPattern("EEEE");
+}
+
+/**
+ * A DayPanel holds the main panel for a day plus its contained components.
+ */
+class DayPanel {
+  public DayPanel()
+  {
+    panel_.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+
+    final int labelHeight = 20;
+    dayLabel_.setForeground(new Color(100, 100, 100));
+    dayLabel_.setLocation(0, 0);
+    dayLabel_.setSize(50, labelHeight);
+    panel_.add(dayLabel_);
+
+    {
+      JLabel label = new JLabel();
+      label.setLocation(0, dayLabel_.getLocation().y + labelHeight);
+      label.setSize(50, labelHeight);
+      label.setText("hello hello hello hello hello hello hello hello hello hello ");
+      label.setVisible(false);
+      panel_.add(label);
+      items_.add(label);
+    }
+  }
+
+  public void addTo(Container container) { container.add(panel_); }
+
+  public void setVisible(boolean visible) { panel_.setVisible(visible); }
+
+  public void
+  setSize(int width, int height)
+  {
+    panel_.setSize(width, height);
+
+    for (JLabel item : items_)
+      item.setSize(width, item.getSize().height);
+  }
+
+  public void
+  setLocation(int x, int y) { panel_.setLocation(x, y); }
+
+  public void
+  setDayText(String text) { dayLabel_.setText(text); }
+
+  public static final Color BORDER_COLOR = new Color(200, 200, 200);
+  private final JPanel panel_ = new JPanel(null);
+  private final JLabel dayLabel_ = new JLabel();
+  // TODO: Make private.
+  public final ArrayList<JLabel> items_ = new ArrayList<>();
 }

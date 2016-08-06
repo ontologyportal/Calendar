@@ -11,6 +11,10 @@ on, or uses this code.
 package com.articulate.calendar;
 
 import com.articulate.calendar.gui.CalendarFrame;
+import com.articulate.sigma.KB;
+import com.articulate.sigma.KBmanager;
+import com.articulate.sigma.WordNet;
+import java.util.HashSet;
 
 /**
  * CalendarApp has the main method which creates the main window and starts the
@@ -23,8 +27,13 @@ public class CalendarApp {
    * @param args The command line arguments.
    */
   public static void main (String args[]) {
+    KBmanager.getMgr().initializeOnce();
+    WordNet.initOnce();
+    KB kb = KBmanager.getMgr().getKB("SUMO");
+
     try {
-      CalendarFrame frame = new CalendarFrame();
+      CalendarFrame frame = new CalendarFrame
+        (new CalendarPreferences(), kb);
       frame.pack();
       frame.setVisible(true);
     } catch (Exception ex) {
