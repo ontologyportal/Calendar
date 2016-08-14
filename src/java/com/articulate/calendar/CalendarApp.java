@@ -13,7 +13,6 @@ package com.articulate.calendar;
 import com.articulate.calendar.argue.Argument;
 import com.articulate.calendar.argue.ArgumentSet;
 import com.articulate.calendar.gui.CalendarFrame;
-import com.articulate.sigma.Formula;
 import com.articulate.sigma.KB;
 import com.articulate.sigma.KBmanager;
 import com.articulate.sigma.WordNet;
@@ -34,11 +33,6 @@ public class CalendarApp {
     WordNet.initOnce();
     KB kb = KBmanager.getMgr().getKB("SUMO");
 
-    System.out.println("WhenFn");
-    for (Formula formula : kb.ask("arg", 1, "(WhenFn Trip_Jefft0_20160601_094000)")) {
-      System.out.println(formula.getArgument(1).equals("(WhenFn Trip_Jefft0_20160601_094000)"));
-    }
-    //if (true) return; // debug
     ArgumentSet argumentSet = makeArgumentSet(kb);
 
     try {
