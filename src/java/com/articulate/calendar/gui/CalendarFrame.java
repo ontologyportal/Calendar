@@ -18,6 +18,8 @@ import com.articulate.sigma.KB;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Font;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -32,11 +34,12 @@ import javax.swing.SwingConstants;
 import javax.swing.DefaultListModel;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.Properties;
 import javax.swing.JFormattedTextField.AbstractFormatter;
 import org.jdatepicker.impl.JDatePanelImpl;
 import org.jdatepicker.impl.JDatePickerImpl;
-import org.jdatepicker.impl.UtilDateModel;
+import org.jdatepicker.impl.UtilCalendarModel;
 
 /**
  * CalendarFrame is the main window of the application.
@@ -83,11 +86,14 @@ public class CalendarFrame extends javax.swing.JFrame {
 
     eventsList_.setModel(eventsListModel_);
 
-    setUpDaysPanel();
-
     // Set up the datePicker_.
-    UtilDateModel model = new UtilDateModel();
-    model.setDate(2016, 8, 7);
+    Locale locale = Locale.getDefault();
+    Calendar calendar = Calendar.getInstance(preferences_.getTimeZone(), locale);
+    // Calendar object: months start at 0.
+    calendar.set
+      (selectedDate_.getYear(), selectedDate_.getMonthValue() - 1,
+       selectedDate_.getDayOfMonth());
+    UtilCalendarModel model = new UtilCalendarModel(calendar);
     Properties p = new Properties();
     p.put("text.today", "Today");
     p.put("text.month", "Month");
@@ -97,6 +103,24 @@ public class CalendarFrame extends javax.swing.JFrame {
     datePicker_.setLocation(186, 4);
     datePicker_.setSize(180, 30);
     calendarPanel_.add(datePicker_);
+    model.addPropertyChangeListener(new PropertyChangeListener() {
+      @Override
+      public void propertyChange(PropertyChangeEvent pce)
+      {
+        if (pce.getPropertyName().equals("day")) {
+          // Only change when the user clicks a day.
+          // TODO: This isn't fired if the user clicks the same day in a different month.
+          Calendar calendar = ((Calendar)datePicker_.getModel().getValue());
+          // Calendar months start from 0.
+          selectedDate_ = LocalDate.of
+            (calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1,
+             calendar.get(Calendar.DAY_OF_MONTH));
+          setUpDaysPanel();
+        }
+      }
+    });
+
+    setUpDaysPanel();
 
     pack();
   }
@@ -107,7 +131,11 @@ public class CalendarFrame extends javax.swing.JFrame {
   private void
   setUpDaysPanel()
   {
-    // debug daysPanelLabel_.setText(selectedDate_.format(monthAndYearFormatter_));
+    boolean monthChanged = !(daysPanelPreviousDate_.getYear() == selectedDate_.getYear() &&
+        daysPanelPreviousDate_.getMonthValue() == selectedDate_.getMonthValue());
+    daysPanelPreviousDate_ = selectedDate_;
+    if (!monthChanged)
+      return;
 
     LocalDate firstDayOfMonth = LocalDate.of
       (selectedDate_.getYear(), selectedDate_.getMonthValue(), 1);
@@ -122,6 +150,12 @@ public class CalendarFrame extends javax.swing.JFrame {
 
     Calendar calendar = Calendar.getInstance(preferences_.getTimeZone());
     // Calendar object: months start at 0.
+    calendar.set
+      (selectedDate_.getYear(), selectedDate_.getMonthValue() - 1, selectedDate_.getDayOfMonth());
+    // This will trigger the change listener which will call this, but
+    // monthChanged above will be false, so we won't loop.
+    ((UtilCalendarModel)datePicker_.getModel()).setValue(calendar);
+
     calendar.set(date.getYear(), date.getMonthValue() - 1, date.getDayOfMonth());
     long dateBeginUtcMillis = calendar.getTimeInMillis();
     long nextDateBeginUtcMillis;
@@ -166,7 +200,7 @@ public class CalendarFrame extends javax.swing.JFrame {
           else
             dayPanel.setDayText("" + date.getDayOfMonth());
 
-          if (false) /* debug */ {
+          {
             System.out.print(" " + date.getDayOfMonth()); // debug
             dayPanel.items_.get(0).setVisible(false);
             // Debug: Very inefficient. Scan the KB looking for a process whose
@@ -232,7 +266,8 @@ public class CalendarFrame extends javax.swing.JFrame {
    */
   @SuppressWarnings("unchecked")
   // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
-  private void initComponents() {
+  private void initComponents()
+  {
 
     topHorizontalSplitPane_ = new javax.swing.JSplitPane();
     calendarControlsPanel_ = new javax.swing.JPanel();
@@ -266,8 +301,10 @@ public class CalendarFrame extends javax.swing.JFrame {
     topHorizontalSplitPane_.setLeftComponent(calendarControlsPanel_);
 
     calendarAndTasksHorizontalSplitPane_.setDividerLocation(800);
-    calendarAndTasksHorizontalSplitPane_.addComponentListener(new java.awt.event.ComponentAdapter() {
-      public void componentResized(java.awt.event.ComponentEvent evt) {
+    calendarAndTasksHorizontalSplitPane_.addComponentListener(new java.awt.event.ComponentAdapter()
+    {
+      public void componentResized(java.awt.event.ComponentEvent evt)
+      {
         calendarAndTasksHorizontalSplitPane_ComponentResized(evt);
       }
     });
@@ -290,30 +327,38 @@ public class CalendarFrame extends javax.swing.JFrame {
 
     decrementButton_.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
     decrementButton_.setText("<");
-    decrementButton_.addActionListener(new java.awt.event.ActionListener() {
-      public void actionPerformed(java.awt.event.ActionEvent evt) {
+    decrementButton_.addActionListener(new java.awt.event.ActionListener()
+    {
+      public void actionPerformed(java.awt.event.ActionEvent evt)
+      {
         decrementButton_ActionPerformed(evt);
       }
     });
 
     todayButton_.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
     todayButton_.setText("Today");
-    todayButton_.addActionListener(new java.awt.event.ActionListener() {
-      public void actionPerformed(java.awt.event.ActionEvent evt) {
+    todayButton_.addActionListener(new java.awt.event.ActionListener()
+    {
+      public void actionPerformed(java.awt.event.ActionEvent evt)
+      {
         todayButton_ActionPerformed(evt);
       }
     });
 
     incrementButton_.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
     incrementButton_.setText(">");
-    incrementButton_.addActionListener(new java.awt.event.ActionListener() {
-      public void actionPerformed(java.awt.event.ActionEvent evt) {
+    incrementButton_.addActionListener(new java.awt.event.ActionListener()
+    {
+      public void actionPerformed(java.awt.event.ActionEvent evt)
+      {
         incrementButton_ActionPerformed(evt);
       }
     });
 
-    daysPanel_.addComponentListener(new java.awt.event.ComponentAdapter() {
-      public void componentResized(java.awt.event.ComponentEvent evt) {
+    daysPanel_.addComponentListener(new java.awt.event.ComponentAdapter()
+    {
+      public void componentResized(java.awt.event.ComponentEvent evt)
+      {
         daysPanel_ComponentResized(evt);
       }
     });
@@ -335,12 +380,12 @@ public class CalendarFrame extends javax.swing.JFrame {
       calendarPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
       .addGroup(calendarPanel_Layout.createSequentialGroup()
         .addGap(5, 5, 5)
-        .addComponent(decrementButton_, javax.swing.GroupLayout.PREFERRED_SIZE, 44, javax.swing.GroupLayout.PREFERRED_SIZE)
-        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+        .addComponent(decrementButton_)
+        .addGap(9, 9, 9)
         .addComponent(todayButton_)
         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-        .addComponent(incrementButton_, javax.swing.GroupLayout.PREFERRED_SIZE, 42, javax.swing.GroupLayout.PREFERRED_SIZE)
-        .addContainerGap(614, Short.MAX_VALUE))
+        .addComponent(incrementButton_)
+        .addContainerGap(628, Short.MAX_VALUE))
       .addComponent(daysPanel_, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
     );
     calendarPanel_Layout.setVerticalGroup(
@@ -504,7 +549,7 @@ public class CalendarFrame extends javax.swing.JFrame {
     });
   }
 
-  private static class DateLabelFormatter extends AbstractFormatter {
+  private class DateLabelFormatter extends AbstractFormatter {
     private SimpleDateFormat dateFormatter = new SimpleDateFormat("MMMM y");
 
     @Override
@@ -517,7 +562,9 @@ public class CalendarFrame extends javax.swing.JFrame {
       if (value == null)
         return "";
 
-      return dateFormatter.format(((Calendar)value).getTime());
+      // A hack: Always show the selectedDate_ as the user navigates the date picker.
+      //return dateFormatter.format(((Calendar)value).getTime());
+      return selectedDate_.format(DateTimeFormatter.ofPattern("MMMM y"));
     }
   }
 
@@ -543,9 +590,10 @@ public class CalendarFrame extends javax.swing.JFrame {
   private final ArrayList<ArrayList<DayPanel>> daysPanelGrid_ = new ArrayList();
   private final ArrayList<JLabel> daysPanelHeaders_ = new ArrayList();
   private LocalDate selectedDate_ = LocalDate.now();
+  private LocalDate daysPanelPreviousDate_ = LocalDate.of(1900, 1, 1);
   private int nWeekRows_ = 0;
   private int calendarAndTasksHorizontalSplitPanePreviousWidth_ = -1;
-  private JDatePickerImpl datePicker_;
+  private final JDatePickerImpl datePicker_;
   private static final DateTimeFormatter monthAndDayFormatter_ =
     DateTimeFormatter.ofPattern("MMM d");
   private static final DateTimeFormatter dayOfWeekFormatter_ =
