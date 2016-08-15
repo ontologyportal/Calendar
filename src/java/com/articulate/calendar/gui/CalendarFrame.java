@@ -10,6 +10,7 @@ on, or uses this code.
 
 package com.articulate.calendar.gui;
 
+import com.articulate.calendar.CalendarKB;
 import com.articulate.calendar.CalendarPreferences;
 import com.articulate.calendar.argue.Argument;
 import com.articulate.calendar.argue.ArgumentSet;
@@ -18,6 +19,8 @@ import com.articulate.sigma.KB;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Font;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.text.ParseException;
@@ -36,6 +39,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.TimeZone;
 import javax.swing.JFormattedTextField.AbstractFormatter;
 import org.jdatepicker.impl.JDatePanelImpl;
 import org.jdatepicker.impl.JDatePickerImpl;
@@ -51,11 +55,12 @@ public class CalendarFrame extends javax.swing.JFrame {
    * Creates a CalendarFrame.
    */
   public CalendarFrame
-    (CalendarPreferences preferences, KB kb, ArgumentSet argumentSet)
+    (CalendarPreferences preferences, CalendarKB calendarKB,
+     ArgumentSet argumentSet)
   {
     super("Calendar");
     preferences_ = preferences;
-    kb_ = kb;
+    calendarKB_ = calendarKB;
     argumentSet_ = argumentSet;
 
     initComponents();
@@ -86,7 +91,7 @@ public class CalendarFrame extends javax.swing.JFrame {
 
     eventsList_.setModel(eventsListModel_);
 
-    // Set up the datePicker_.
+    // Set up the datePanel_.
     Locale locale = Locale.getDefault();
     Calendar calendar = Calendar.getInstance(preferences_.getTimeZone(), locale);
     // Calendar object: months start at 0.
@@ -98,24 +103,22 @@ public class CalendarFrame extends javax.swing.JFrame {
     p.put("text.today", "Today");
     p.put("text.month", "Month");
     p.put("text.year", "Year");
-    JDatePanelImpl datePanel = new JDatePanelImpl(model, p);
-    datePicker_ = new JDatePickerImpl(datePanel, new DateLabelFormatter());
-    datePicker_.setLocation(186, 4);
-    datePicker_.setSize(180, 30);
-    calendarPanel_.add(datePicker_);
-    model.addPropertyChangeListener(new PropertyChangeListener() {
+    datePanel_ = new JDatePanelImpl(model, p);
+    datePanel_.setLocation(0, 0);
+    datePanel_.setSize(190, 170);
+    calendarControlsPanel_.add(datePanel_);
+    datePanel_.addActionListener(new ActionListener() {
       @Override
-      public void propertyChange(PropertyChangeEvent pce)
-      {
-        if (pce.getPropertyName().equals("day")) {
-          // Only change when the user clicks a day.
-          // TODO: This isn't fired if the user clicks the same day in a different month.
-          Calendar calendar = ((Calendar)datePicker_.getModel().getValue());
-          // Calendar months start from 0.
-          selectedDate_ = LocalDate.of
-            (calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1,
-             calendar.get(Calendar.DAY_OF_MONTH));
-          setUpDaysPanel();
+      public void actionPerformed(ActionEvent ae) {
+        if (ae.getActionCommand().equals("Date selected")) {
+          Calendar calendar = ((Calendar)datePanel_.getModel().getValue());
+          if (calendar != null) {
+            // Calendar months start from 0.
+            selectedDate_ = LocalDate.of
+              (calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1,
+               calendar.get(Calendar.DAY_OF_MONTH));
+            setUpDaysPanel();
+          }
         }
       }
     });
@@ -137,6 +140,15 @@ public class CalendarFrame extends javax.swing.JFrame {
     if (!monthChanged)
       return;
 
+    daysPanelLabel_.setText(selectedDate_.format(monthAndYearFormatter_));
+    TimeZone timeZone = preferences_.getTimeZone();
+    Calendar calendar = Calendar.getInstance(timeZone);
+    // Calendar object: months start at 0.
+    calendar.set
+      (selectedDate_.getYear(), selectedDate_.getMonthValue() - 1, selectedDate_.getDayOfMonth());
+    // Make the date panel track the change.
+    ((UtilCalendarModel)datePanel_.getModel()).setValue(calendar);
+
     LocalDate firstDayOfMonth = LocalDate.of
       (selectedDate_.getYear(), selectedDate_.getMonthValue(), 1);
     LocalDate lastDayOfLastMonth = firstDayOfMonth.plusDays(-1);
@@ -148,18 +160,9 @@ public class CalendarFrame extends javax.swing.JFrame {
     while (date.getDayOfWeek() != preferences_.getStartOfWeek())
       date = date.plusDays(-1);
 
-    Calendar calendar = Calendar.getInstance(preferences_.getTimeZone());
-    // Calendar object: months start at 0.
-    calendar.set
-      (selectedDate_.getYear(), selectedDate_.getMonthValue() - 1, selectedDate_.getDayOfMonth());
-    // This will trigger the change listener which will call this, but
-    // monthChanged above will be false, so we won't loop.
-    ((UtilCalendarModel)datePicker_.getModel()).setValue(calendar);
-
     calendar.set(date.getYear(), date.getMonthValue() - 1, date.getDayOfMonth());
     long dateBeginUtcMillis = calendar.getTimeInMillis();
     long nextDateBeginUtcMillis;
-    // TODO: Don't create the Pattern every time.
     Pattern timeIntervalPattern = Pattern.compile
       ("^\\(\\s*TimeIntervalFn\\s+\\(\\s*SecondsSinceUnixEpochFn\\s+(\\d+)\\s*\\)" +
                              "\\s+\\(\\s*SecondsSinceUnixEpochFn\\s+(\\d+)\\s*\\)\\s*\\)$");
@@ -200,8 +203,7 @@ public class CalendarFrame extends javax.swing.JFrame {
           else
             dayPanel.setDayText("" + date.getDayOfMonth());
 
-          {
-            System.out.print(" " + date.getDayOfMonth()); // debug
+          if (false) /* debug */ {
             dayPanel.items_.get(0).setVisible(false);
             // Debug: Very inefficient. Scan the KB looking for a process whose
             // time is between dateBeginUtcMillis and nextDateBeginUtcMillis.
@@ -209,7 +211,7 @@ public class CalendarFrame extends javax.swing.JFrame {
               String process = (String)argument.getPremises().toArray()[0];
 
               long startTimeUtcMillis = -1;
-              for (Formula formula : kb_.ask("arg", 0, "equal")) {
+              for (Formula formula : calendarKB_.kb.ask("arg", 0, "equal")) {
                 if (formula.listLength() < 3)
                   continue;
                 if (!formula.getArgument(1).equals("(WhenFn " + process + ")"))
@@ -225,7 +227,8 @@ public class CalendarFrame extends javax.swing.JFrame {
 
               // TODO: Check for empty list.
               // TODO: Remove quotes.
-              String label = kb_.askWithRestriction(0, "documentation", 1, process).get(0).getArgument(3);
+              String label = calendarKB_.kb.askWithRestriction
+                (0, "documentation", 1, process).get(0).getArgument(3);
 
               if (startTimeUtcMillis >= dateBeginUtcMillis &&
                   startTimeUtcMillis < nextDateBeginUtcMillis) {
@@ -256,7 +259,6 @@ public class CalendarFrame extends javax.swing.JFrame {
 
     // Set the day panel sizes and locations.
     daysPanel_ComponentResized(null);
-    System.out.println(""); // debug
   }
 
   /**
@@ -279,19 +281,20 @@ public class CalendarFrame extends javax.swing.JFrame {
     todayButton_ = new javax.swing.JButton();
     incrementButton_ = new javax.swing.JButton();
     daysPanel_ = new javax.swing.JPanel();
+    daysPanelLabel_ = new javax.swing.JLabel();
     eventsPanel_ = new javax.swing.JPanel();
     eventsScrollPane_ = new javax.swing.JScrollPane();
     eventsList_ = new javax.swing.JList<>();
 
     setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-    topHorizontalSplitPane_.setDividerLocation(100);
+    topHorizontalSplitPane_.setDividerLocation(190);
 
     javax.swing.GroupLayout calendarControlsPanel_Layout = new javax.swing.GroupLayout(calendarControlsPanel_);
     calendarControlsPanel_.setLayout(calendarControlsPanel_Layout);
     calendarControlsPanel_Layout.setHorizontalGroup(
       calendarControlsPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGap(0, 99, Short.MAX_VALUE)
+      .addGap(0, 189, Short.MAX_VALUE)
     );
     calendarControlsPanel_Layout.setVerticalGroup(
       calendarControlsPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -300,7 +303,7 @@ public class CalendarFrame extends javax.swing.JFrame {
 
     topHorizontalSplitPane_.setLeftComponent(calendarControlsPanel_);
 
-    calendarAndTasksHorizontalSplitPane_.setDividerLocation(800);
+    calendarAndTasksHorizontalSplitPane_.setDividerLocation(700);
     calendarAndTasksHorizontalSplitPane_.addComponentListener(new java.awt.event.ComponentAdapter()
     {
       public void componentResized(java.awt.event.ComponentEvent evt)
@@ -313,7 +316,7 @@ public class CalendarFrame extends javax.swing.JFrame {
     tasksPanel_.setLayout(tasksPanel_Layout);
     tasksPanel_Layout.setHorizontalGroup(
       tasksPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGap(0, 150, Short.MAX_VALUE)
+      .addGap(0, 160, Short.MAX_VALUE)
     );
     tasksPanel_Layout.setVerticalGroup(
       tasksPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -371,8 +374,10 @@ public class CalendarFrame extends javax.swing.JFrame {
     );
     daysPanel_Layout.setVerticalGroup(
       daysPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGap(0, 526, Short.MAX_VALUE)
+      .addGap(0, 525, Short.MAX_VALUE)
     );
+
+    daysPanelLabel_.setText("jLabel1");
 
     javax.swing.GroupLayout calendarPanel_Layout = new javax.swing.GroupLayout(calendarPanel_);
     calendarPanel_.setLayout(calendarPanel_Layout);
@@ -385,7 +390,9 @@ public class CalendarFrame extends javax.swing.JFrame {
         .addComponent(todayButton_)
         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
         .addComponent(incrementButton_)
-        .addContainerGap(628, Short.MAX_VALUE))
+        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+        .addComponent(daysPanelLabel_, javax.swing.GroupLayout.PREFERRED_SIZE, 151, javax.swing.GroupLayout.PREFERRED_SIZE)
+        .addContainerGap(373, Short.MAX_VALUE))
       .addComponent(daysPanel_, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
     );
     calendarPanel_Layout.setVerticalGroup(
@@ -395,7 +402,8 @@ public class CalendarFrame extends javax.swing.JFrame {
         .addGroup(calendarPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
           .addComponent(decrementButton_)
           .addComponent(todayButton_)
-          .addComponent(incrementButton_))
+          .addComponent(incrementButton_)
+          .addComponent(daysPanelLabel_, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE))
         .addGap(27, 27, 27)
         .addComponent(daysPanel_, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
     );
@@ -412,7 +420,7 @@ public class CalendarFrame extends javax.swing.JFrame {
     eventsPanel_.setLayout(eventsPanel_Layout);
     eventsPanel_Layout.setHorizontalGroup(
       eventsPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addComponent(eventsScrollPane_, javax.swing.GroupLayout.DEFAULT_SIZE, 797, Short.MAX_VALUE)
+      .addComponent(eventsScrollPane_, javax.swing.GroupLayout.DEFAULT_SIZE, 697, Short.MAX_VALUE)
     );
     eventsPanel_Layout.setVerticalGroup(
       eventsPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -549,29 +557,11 @@ public class CalendarFrame extends javax.swing.JFrame {
     });
   }
 
-  private class DateLabelFormatter extends AbstractFormatter {
-    private SimpleDateFormat dateFormatter = new SimpleDateFormat("MMMM y");
-
-    @Override
-    public Object stringToValue(String text) throws ParseException {
-      return dateFormatter.parseObject(text);
-    }
-
-    @Override
-    public String valueToString(Object value) throws ParseException {
-      if (value == null)
-        return "";
-
-      // A hack: Always show the selectedDate_ as the user navigates the date picker.
-      //return dateFormatter.format(((Calendar)value).getTime());
-      return selectedDate_.format(DateTimeFormatter.ofPattern("MMMM y"));
-    }
-  }
-
   // Variables declaration - do not modify//GEN-BEGIN:variables
   private javax.swing.JSplitPane calendarAndTasksHorizontalSplitPane_;
   private javax.swing.JPanel calendarControlsPanel_;
   private javax.swing.JPanel calendarPanel_;
+  private javax.swing.JLabel daysPanelLabel_;
   private javax.swing.JPanel daysPanel_;
   private javax.swing.JButton decrementButton_;
   private javax.swing.JSplitPane eventsAndCalendarVerticalSplitPane_;
@@ -584,7 +574,7 @@ public class CalendarFrame extends javax.swing.JFrame {
   private javax.swing.JSplitPane topHorizontalSplitPane_;
   // End of variables declaration//GEN-END:variables
   private final CalendarPreferences preferences_;
-  private final KB kb_;
+  private final CalendarKB calendarKB_;
   private final ArgumentSet argumentSet_;
   private final DefaultListModel<String> eventsListModel_ = new DefaultListModel<>();
   private final ArrayList<ArrayList<DayPanel>> daysPanelGrid_ = new ArrayList();
@@ -593,9 +583,11 @@ public class CalendarFrame extends javax.swing.JFrame {
   private LocalDate daysPanelPreviousDate_ = LocalDate.of(1900, 1, 1);
   private int nWeekRows_ = 0;
   private int calendarAndTasksHorizontalSplitPanePreviousWidth_ = -1;
-  private final JDatePickerImpl datePicker_;
+  private final JDatePanelImpl datePanel_;
   private static final DateTimeFormatter monthAndDayFormatter_ =
     DateTimeFormatter.ofPattern("MMM d");
+  private static final DateTimeFormatter monthAndYearFormatter_ =
+    DateTimeFormatter.ofPattern("MMMM y");
   private static final DateTimeFormatter dayOfWeekFormatter_ =
     DateTimeFormatter.ofPattern("EEEE");
 }
