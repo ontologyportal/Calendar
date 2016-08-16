@@ -39,6 +39,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.Set;
 import java.util.TimeZone;
 import javax.swing.JFormattedTextField.AbstractFormatter;
 import org.jdatepicker.impl.JDatePanelImpl;
@@ -161,11 +162,6 @@ public class CalendarFrame extends javax.swing.JFrame {
       date = date.plusDays(-1);
 
     calendar.set(date.getYear(), date.getMonthValue() - 1, date.getDayOfMonth());
-    long dateBeginUtcMillis = calendar.getTimeInMillis();
-    long nextDateBeginUtcMillis;
-    Pattern timeIntervalPattern = Pattern.compile
-      ("^\\(\\s*TimeIntervalFn\\s+\\(\\s*SecondsSinceUnixEpochFn\\s+(\\d+)\\s*\\)" +
-                             "\\s+\\(\\s*SecondsSinceUnixEpochFn\\s+(\\d+)\\s*\\)\\s*\\)$");
 
     // We'll adjust nWeekRows_ below.
     nWeekRows_ = 6;
@@ -182,7 +178,6 @@ public class CalendarFrame extends javax.swing.JFrame {
         // Calendar object: months start at 0.
         calendar.set
           (nextDate.getYear(), nextDate.getMonthValue() - 1, nextDate.getDayOfMonth());
-        nextDateBeginUtcMillis = calendar.getTimeInMillis();
 
         if (iWeek == 0)
           // Set the header using LocalDate.format which can be localized.
@@ -203,47 +198,58 @@ public class CalendarFrame extends javax.swing.JFrame {
           else
             dayPanel.setDayText("" + date.getDayOfMonth());
 
-          if (false) /* debug */ {
-            dayPanel.items_.get(0).setVisible(false);
-            // Debug: Very inefficient. Scan the KB looking for a process whose
-            // time is between dateBeginUtcMillis and nextDateBeginUtcMillis.
-            for (Argument argument : argumentSet_.getArguments()) {
-              String process = (String)argument.getPremises().toArray()[0];
+          dayPanel.items_.get(0).setVisible(false);
+          for (CalendarKB.PhysicalTimeInterval timeInterval : calendarKB_.overlapsDate
+                (date, timeZone)) {
+            // TODO: Check that process is a process in the argumentSet_.
+            String process = timeInterval.physical;
 
-              long startTimeUtcMillis = -1;
-              for (Formula formula : calendarKB_.kb.ask("arg", 0, "equal")) {
-                if (formula.listLength() < 3)
-                  continue;
-                if (!formula.getArgument(1).equals("(WhenFn " + process + ")"))
-                  continue;
-                String timeInterval = formula.getArgument(2);
-                Matcher matcher = timeIntervalPattern.matcher(timeInterval);
-                if (matcher.find()) {
-                  // TODO: Check that it's a number.
-                  startTimeUtcMillis = Long.parseLong(matcher.group(1)) * 1000;
-                  break;
-                }
+            // TODO: Check for empty list.
+            String label = CalendarKB.removeQuotes(calendarKB_.kb.askWithRestriction
+              (0, "documentation", 1, process).get(0).getArgument(3));
+
+            dayPanel.items_.get(0).setVisible(true);
+            calendar.clear();
+            calendar.setTimeInMillis(timeInterval.beginUtcMillis);
+            int beginHour = calendar.get(Calendar.HOUR_OF_DAY);
+            int beginMinute = calendar.get(Calendar.MINUTE);
+            String displayTime;
+            // TODO: Preference for 12/24 hour display.
+            String beginTime = String.format("%02d:%02d ", beginHour, beginMinute);
+
+            if (timeInterval.endUtcMillis == timeInterval.beginUtcMillis)
+              // A common and simple case.
+              displayTime = beginTime;
+            else {
+              LocalDate beginDate = CalendarKB.getCalendarLocalDate(calendar);
+              calendar.clear();
+              calendar.setTimeInMillis(timeInterval.endUtcMillis);
+              int endHour = calendar.get(Calendar.HOUR_OF_DAY);
+              int endMinute = calendar.get(Calendar.MINUTE);
+              int endSecond = calendar.get(Calendar.SECOND);
+              boolean endsAtMidnight =
+                (endHour == 0 && endMinute == 0 && endSecond == 0);
+
+              LocalDate endDate = CalendarKB.getCalendarLocalDate(calendar);
+              if (date.equals(beginDate)) {
+                if (endDate.equals(beginDate) ||
+                    endsAtMidnight && endDate.equals(beginDate.plusDays(1)))
+                  displayTime = beginTime;
+                else
+                  // Prefix a left arrow.
+                  displayTime = "< " + beginTime;
               }
-
-              // TODO: Check for empty list.
-              // TODO: Remove quotes.
-              String label = calendarKB_.kb.askWithRestriction
-                (0, "documentation", 1, process).get(0).getArgument(3);
-
-              if (startTimeUtcMillis >= dateBeginUtcMillis &&
-                  startTimeUtcMillis < nextDateBeginUtcMillis) {
-                dayPanel.items_.get(0).setVisible(true);
-                calendar.clear();
-                calendar.setTimeInMillis(startTimeUtcMillis);
+              else if (date.equals(endDate))
+                // Prefix a right arrow.
                 // TODO: Preference for 12/24 hour display.
-                dayPanel.items_.get(0).setText
-                  (String.format
-                   ("%02d:%02d ", calendar.get(Calendar.HOUR_OF_DAY),
-                     calendar.get(Calendar.MINUTE)) +
-                   label);
-                break;
-              }
+                displayTime = String.format("> %02d:%02d ", endHour, endMinute);
+              else
+                // Prefix a left-right arrow without the time.
+                displayTime = "<-> ";
             }
+            dayPanel.items_.get(0).setText(displayTime + label);
+
+            break; // debug
           }
 
           if (date.equals(lastDayOfMonth))
@@ -253,7 +259,6 @@ public class CalendarFrame extends javax.swing.JFrame {
 
         // Get ready for the next iteration.
         date = nextDate;
-        dateBeginUtcMillis = nextDateBeginUtcMillis;
       }
     }
 
@@ -374,10 +379,11 @@ public class CalendarFrame extends javax.swing.JFrame {
     );
     daysPanel_Layout.setVerticalGroup(
       daysPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGap(0, 525, Short.MAX_VALUE)
+      .addGap(0, 526, Short.MAX_VALUE)
     );
 
-    daysPanelLabel_.setText("jLabel1");
+    daysPanelLabel_.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+    daysPanelLabel_.setText("September 2016");
 
     javax.swing.GroupLayout calendarPanel_Layout = new javax.swing.GroupLayout(calendarPanel_);
     calendarPanel_.setLayout(calendarPanel_Layout);
