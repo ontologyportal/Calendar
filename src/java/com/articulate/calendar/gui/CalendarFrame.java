@@ -379,10 +379,10 @@ public class CalendarFrame extends javax.swing.JFrame {
     );
     daysPanel_Layout.setVerticalGroup(
       daysPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGap(0, 526, Short.MAX_VALUE)
+      .addGap(0, 525, Short.MAX_VALUE)
     );
 
-    daysPanelLabel_.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+    daysPanelLabel_.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
     daysPanelLabel_.setText("September 2016");
 
     javax.swing.GroupLayout calendarPanel_Layout = new javax.swing.GroupLayout(calendarPanel_);
