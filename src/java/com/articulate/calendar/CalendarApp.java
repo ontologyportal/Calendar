@@ -13,9 +13,9 @@ package com.articulate.calendar;
 import com.articulate.calendar.argue.Argument;
 import com.articulate.calendar.argue.ArgumentSet;
 import com.articulate.calendar.gui.CalendarFrame;
-import com.articulate.sigma.KB;
 import com.articulate.sigma.KBmanager;
 import com.articulate.sigma.WordNet;
+import java.time.LocalDate;
 import java.util.HashSet;
 
 /**
@@ -31,13 +31,17 @@ public class CalendarApp {
   public static void main (String args[]) {
     KBmanager.getMgr().initializeOnce();
     WordNet.initOnce();
-    KB kb = KBmanager.getMgr().getKB("SUMO");
+    CalendarPreferences preferences = new CalendarPreferences();
 
-    ArgumentSet argumentSet = makeArgumentSet(kb);
+    CalendarKB calendarKB = new CalendarKB(KBmanager.getMgr().getKB("SUMO"));
+    // Pre-cache overlapsDate results now.
+    calendarKB.overlapsDate(LocalDate.now(), preferences.getTimeZone());
+
+    ArgumentSet argumentSet = makeArgumentSet(calendarKB);
 
     try {
       CalendarFrame frame = new CalendarFrame
-        (new CalendarPreferences(), kb, argumentSet);
+        (preferences, calendarKB, argumentSet);
       frame.pack();
       frame.setVisible(true);
     } catch (Exception ex) {
@@ -45,11 +49,11 @@ public class CalendarApp {
     }
   }
 
-  private static ArgumentSet makeArgumentSet(KB kb)
+  private static ArgumentSet makeArgumentSet(CalendarKB calendarKB)
   {
     HashSet<Argument> arguments = new HashSet<>();
     // For debugging, just fill the argumentSet with known Process instances.
-    for (String process : kb.kbCache.getInstancesForType("Process"))
+    for (String process : calendarKB.kb.kbCache.getInstancesForType("Process"))
     {
       HashSet<String> premises = new HashSet<>();
       premises.add(process);
