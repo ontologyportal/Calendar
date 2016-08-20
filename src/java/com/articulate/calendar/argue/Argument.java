@@ -11,6 +11,7 @@ on, or uses this code.
 package com.articulate.calendar.argue;
 
 import com.articulate.sigma.Formula;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -19,10 +20,12 @@ import java.util.Set;
  * @author Jeff Thompson, jeff@thefirst.org
  */
 public class Argument {
-  public Argument(Formula conclusion, Set<String> premises)
+  public Argument(Formula conclusion)
   {
     conclusion_ = conclusion;
-    premises_ = premises;
+
+    premises_ = new HashSet<>();
+    premises_.add(conclusion);
   }
 
   /**
@@ -33,10 +36,10 @@ public class Argument {
 
   /**
    * Get the argument premises.
-   * @return The premises.
+   * @return The premises. You should not modify this object.
    */
-  public Set<String> getPremises() { return premises_; }
+  public Set<Formula> getPremises() { return premises_; }
 
   private final Formula conclusion_;
-  private final Set<String> premises_;
+  private final Set<Formula> premises_;
 }

@@ -13,6 +13,7 @@ package com.articulate.calendar;
 import com.articulate.calendar.argue.Argument;
 import com.articulate.calendar.argue.ArgumentSet;
 import com.articulate.calendar.gui.CalendarFrame;
+import com.articulate.sigma.Formula;
 import com.articulate.sigma.KBmanager;
 import com.articulate.sigma.WordNet;
 import java.time.LocalDate;
@@ -54,12 +55,9 @@ public class CalendarApp {
     HashSet<Argument> arguments = new HashSet<>();
     // For debugging, just fill the argumentSet with known Process instances.
     for (String process : calendarKB.kb.kbCache.getInstancesForType("Process"))
-    {
-      HashSet<String> premises = new HashSet<>();
-      premises.add(process);
-      // For debugging, we don't need the conclusion.
-      arguments.add(new Argument(null, premises));
-    }
+      // For debugging, we don't need the rules.
+      arguments.add
+        (new Argument(new Formula("(instance " + process + " Process)")));
 
     return new ArgumentSet(arguments);
   }
