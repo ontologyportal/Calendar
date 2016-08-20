@@ -12,24 +12,15 @@ package com.articulate.calendar.gui;
 
 import com.articulate.calendar.CalendarKB;
 import com.articulate.calendar.CalendarPreferences;
-import com.articulate.calendar.argue.Argument;
 import com.articulate.calendar.argue.ArgumentSet;
-import com.articulate.sigma.Formula;
-import com.articulate.sigma.KB;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashSet;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -39,11 +30,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Properties;
-import java.util.Set;
 import java.util.TimeZone;
-import javax.swing.JFormattedTextField.AbstractFormatter;
 import org.jdatepicker.impl.JDatePanelImpl;
-import org.jdatepicker.impl.JDatePickerImpl;
 import org.jdatepicker.impl.UtilCalendarModel;
 
 /**
