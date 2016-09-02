@@ -13,3 +13,5 @@ For example, the calendar may show you attending a meeting in Barcelona, but als
 SUMO has the rules to show that Barcelona and Germany are separate locations and you can't attend events in two separate places at the same time. Using
 [assumption-based argumentation](http://www.doc.ic.ac.uk/%7Eft/publications.html), the calendar shows the argument for you being in Barcelona and the argument for
 you being at your friend's house and why they contradict. This lets you better see how to resolve the conflicting events.
+
+![alt text](https://github.com/ontologyportal/Calendar/raw/master/doc/main-screen-shot.png "Main screen shot")
