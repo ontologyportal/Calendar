@@ -11,6 +11,7 @@ on, or uses this code.
 package com.articulate.calendar.gui;
 
 import com.articulate.calendar.CalendarKB;
+import com.articulate.calendar.CalendarKB.PhysicalTimeInterval;
 import com.articulate.calendar.CalendarPreferences;
 import com.articulate.calendar.argue.ArgumentSet;
 import java.awt.Color;
@@ -30,7 +31,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.Set;
 import java.util.TimeZone;
+import javax.swing.JList;
+import javax.swing.JScrollPane;
 import org.jdatepicker.impl.JDatePanelImpl;
 import org.jdatepicker.impl.UtilCalendarModel;
 
@@ -186,17 +190,18 @@ public class CalendarFrame extends javax.swing.JFrame {
           else
             dayPanel.setDayText("" + date.getDayOfMonth());
 
-          dayPanel.items_.get(0).setVisible(false);
-          for (CalendarKB.PhysicalTimeInterval timeInterval : calendarKB_.overlapsDate
-                (date, timeZone)) {
+          PhysicalTimeInterval[] entries = calendarKB_.overlapsDate
+            (date, timeZone).toArray(new PhysicalTimeInterval[0]);
+          String[] entryLabels = new String[entries.length];
+          for (int i = 0; i < entries.length; ++i) {
             // TODO: Check that process is a process in the argumentSet_.
+            PhysicalTimeInterval timeInterval = entries[i];
             String process = timeInterval.physical;
 
             // TODO: Check for empty list.
             String label = CalendarKB.removeQuotes(calendarKB_.kb.askWithRestriction
               (0, "documentation", 1, process).get(0).getArgument(3));
 
-            dayPanel.items_.get(0).setVisible(true);
             calendar.clear();
             calendar.setTimeInMillis(timeInterval.beginUtcMillis);
             int beginHour = calendar.get(Calendar.HOUR_OF_DAY);
@@ -235,10 +240,11 @@ public class CalendarFrame extends javax.swing.JFrame {
                 // Prefix a left-right arrow without the time.
                 displayTime = "<-> ";
             }
-            dayPanel.items_.get(0).setText(displayTime + label);
 
-            break; // debug
+            entryLabels[i] = displayTime + label;
           }
+
+          dayPanel.setEntries(entries, entryLabels);
 
           if (date.equals(lastDayOfMonth))
             // This is the last row.
@@ -313,7 +319,7 @@ public class CalendarFrame extends javax.swing.JFrame {
     );
     tasksPanel_Layout.setVerticalGroup(
       tasksPanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGap(0, 685, Short.MAX_VALUE)
+      .addGap(0, 687, Short.MAX_VALUE)
     );
 
     calendarAndTasksHorizontalSplitPane_.setRightComponent(tasksPanel_);
@@ -600,15 +606,10 @@ class DayPanel {
     dayLabel_.setSize(50, labelHeight);
     panel_.add(dayLabel_);
 
-    {
-      JLabel label = new JLabel();
-      label.setLocation(0, dayLabel_.getLocation().y + labelHeight);
-      label.setSize(50, labelHeight);
-      label.setText("hello hello hello hello hello hello hello hello hello hello ");
-      label.setVisible(false);
-      panel_.add(label);
-      items_.add(label);
-    }
+    scrollPane_.setBorder(BorderFactory.createEmptyBorder());
+    scrollPane_.setViewportView(entrieStrings_);
+    scrollPane_.setLocation(0, dayLabel_.getLocation().y + labelHeight);
+    panel_.add(scrollPane_);
   }
 
   public void addTo(Container container) { container.add(panel_); }
@@ -619,9 +620,9 @@ class DayPanel {
   setSize(int width, int height)
   {
     panel_.setSize(width, height);
-
-    for (JLabel item : items_)
-      item.setSize(width, item.getSize().height);
+    scrollPane_.setSize
+      (width - 1,
+       height - 1 - (dayLabel_.getLocation().y + dayLabel_.getSize().height));
   }
 
   public void
@@ -630,9 +631,17 @@ class DayPanel {
   public void
   setDayText(String text) { dayLabel_.setText(text); }
 
+  public void
+  setEntries(PhysicalTimeInterval[] entries, String[] entryLabels)
+  {
+    entries_ = entries;
+    entrieStrings_.setListData(entryLabels);
+  }
+
   public static final Color BORDER_COLOR = new Color(200, 200, 200);
   private final JPanel panel_ = new JPanel(null);
   private final JLabel dayLabel_ = new JLabel();
-  // TODO: Make private.
-  public final ArrayList<JLabel> items_ = new ArrayList<>();
+  private final JScrollPane scrollPane_ = new JScrollPane();
+  private final JList<String> entrieStrings_ = new JList<>();
+  private PhysicalTimeInterval[] entries_;
 }
