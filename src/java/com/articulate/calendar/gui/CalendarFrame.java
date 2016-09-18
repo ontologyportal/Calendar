@@ -29,6 +29,7 @@ import javax.swing.SwingConstants;
 import javax.swing.DefaultListModel;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.Set;
@@ -190,12 +191,12 @@ public class CalendarFrame extends javax.swing.JFrame {
           else
             dayPanel.setDayText("" + date.getDayOfMonth());
 
-          PhysicalTimeInterval[] entries = calendarKB_.overlapsDate
-            (date, timeZone).toArray(new PhysicalTimeInterval[0]);
-          String[] entryLabels = new String[entries.length];
-          for (int i = 0; i < entries.length; ++i) {
+          Set<PhysicalTimeInterval> timeIntervals = calendarKB_.overlapsDate
+            (date, timeZone);
+          DayPanel.Entry[] panelEntries = new DayPanel.Entry[timeIntervals.size()];
+          int entryCount = 0;
+          for (PhysicalTimeInterval timeInterval : timeIntervals) {
             // TODO: Check that process is a process in the argumentSet_.
-            PhysicalTimeInterval timeInterval = entries[i];
             String process = timeInterval.physical;
 
             // TODO: Check for empty list.
@@ -241,10 +242,13 @@ public class CalendarFrame extends javax.swing.JFrame {
                 displayTime = "<-> ";
             }
 
-            entryLabels[i] = displayTime + label;
+            panelEntries[entryCount++] = new DayPanel.Entry
+             (timeInterval, displayTime + label);
           }
 
-          dayPanel.setEntries(entries, entryLabels);
+          // Sort according to DayPanel.Entry.compareTo.
+          Arrays.sort(panelEntries);
+          dayPanel.setEntries(panelEntries);
 
           if (date.equals(lastDayOfMonth))
             // This is the last row.
@@ -607,9 +611,51 @@ class DayPanel {
     panel_.add(dayLabel_);
 
     scrollPane_.setBorder(BorderFactory.createEmptyBorder());
-    scrollPane_.setViewportView(entrieStrings_);
+    scrollPane_.setViewportView(entries_);
     scrollPane_.setLocation(0, dayLabel_.getLocation().y + labelHeight);
     panel_.add(scrollPane_);
+  }
+
+  public static class Entry implements Comparable<Entry> {
+    public Entry(PhysicalTimeInterval timeInterval, String label)
+    {
+      this.timeInterval = timeInterval;
+      this.label = label;
+
+      if (label.startsWith("<-> "))
+        labelRank = 1;
+      else if (label.startsWith("> "))
+        labelRank = 2;
+      else
+        labelRank = 3;
+    }
+
+    // Define toString for display.
+    @Override
+    public String toString() { return label; }
+
+    // Choose the compare order for display.
+    @Override
+    public int compareTo(Entry other)
+    {
+      if (other == this)
+        return 0;
+
+      int rankComparison = Integer.compare(labelRank, other.labelRank);
+      if (rankComparison != 0)
+        return rankComparison;
+
+      if (label.startsWith("<-> "))
+        return label.compareTo(other.label);
+      else if (label.startsWith("> "))
+        return Long.compare(timeInterval.endUtcMillis, other.timeInterval.endUtcMillis);
+      else
+        return Long.compare(timeInterval.beginUtcMillis, other.timeInterval.beginUtcMillis);
+    }
+
+    public final PhysicalTimeInterval timeInterval;
+    public final String label;
+    private final int labelRank;
   }
 
   public void addTo(Container container) { container.add(panel_); }
@@ -632,16 +678,11 @@ class DayPanel {
   setDayText(String text) { dayLabel_.setText(text); }
 
   public void
-  setEntries(PhysicalTimeInterval[] entries, String[] entryLabels)
-  {
-    entries_ = entries;
-    entrieStrings_.setListData(entryLabels);
-  }
+  setEntries(Entry[] entries) { entries_.setListData(entries); }
 
   public static final Color BORDER_COLOR = new Color(200, 200, 200);
   private final JPanel panel_ = new JPanel(null);
   private final JLabel dayLabel_ = new JLabel();
   private final JScrollPane scrollPane_ = new JScrollPane();
-  private final JList<String> entrieStrings_ = new JList<>();
-  private PhysicalTimeInterval[] entries_;
+  private final JList<Entry> entries_ = new JList<>();
 }
