@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import com.google.gson.Gson;
+import com.google.gson.stream.JsonReader;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -15,6 +16,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -93,15 +95,16 @@ public class WikidataJava {
 
     public final int Id;
     public int[] instanceOf_ = null;
-    public HashSet<Integer> hasInstance_ = null;
+    public Set<Integer> hasInstance_ = null;
     public int[] subclassOf_ = null;
-    public HashSet<Integer> hasSubclass_ = null;
+    public Set<Integer> hasSubclass_ = null;
     public int[] partOf_ = null;
-    public HashSet<Integer> hasPart_ = null;
+    public Set<Integer> hasPart_ = null;
     public int[] country_ = null;
     public int[] locatedInTheAdministrativeTerritorialEntity_ = null;
     public int[] locatedInTimeZone_ = null;
-    public HashSet<Integer> debugRootClasses_ = null;
+    public Map<Integer, Map<Integer, int[]>> locatedInTimeZoneQualifiers_ = null;
+    public Set<Integer> debugRootClasses_ = null;
     public boolean hasSubclassOfLoop_ = false;
     public boolean hasPartOfLoop_ = false;
     public boolean hasCountryLoop_ = false;
@@ -261,6 +264,22 @@ public class WikidataJava {
     dumpProperty
       (items, (Item obj) -> obj.locatedInTimeZone_,
        new File(dumpDir, "locatedInTimeZone.tsv").getAbsolutePath());
+    try (FileWriter file = new FileWriter(new File(dumpDir, "locatedInTimeZoneQualifiers.tsv").getAbsolutePath());
+         BufferedWriter writer = new BufferedWriter(file)) {
+      // itemId\titemPropertyId\tqualifierPropertyId1\titemValue1\titemValue2...
+      for (Map.Entry<Integer, Item> itemEntry : items.entrySet()) {
+        if (itemEntry.getValue().locatedInTimeZoneQualifiers_ != null) {
+          for (Map.Entry<Integer, Map<Integer, int[]>> qualifiersEntry : itemEntry.getValue().locatedInTimeZoneQualifiers_.entrySet()) {
+            for (Map.Entry<Integer, int[]> qualifierValuesEntry : qualifiersEntry.getValue().entrySet()) {
+              writer.write(itemEntry.getKey() + "\t" + qualifiersEntry.getKey() + "\t" + qualifierValuesEntry.getKey());
+              for (int value : qualifierValuesEntry.getValue())
+                writer.write("\t" + value);
+              writer.newLine();
+            }
+          }
+        }
+      }
+    }
 
     try (FileWriter file = new FileWriter(new File(dumpDir, "propertyEnLabels.tsv"));
          BufferedWriter writer = new BufferedWriter(file)) {
@@ -430,6 +449,24 @@ public class WikidataJava {
       }
     }
 
+    System.out.print("Checking time zones ...");
+    for (Map.Entry<Integer, Item> entry : items.entrySet()) {
+      Item item = entry.getValue();
+      if (item.locatedInTimeZone_ != null) {
+        for (int timeZoneId : item.locatedInTimeZone_) {
+          if (item.locatedInTimeZoneQualifiers_ != null &&
+              item.locatedInTimeZoneQualifiers_.containsKey(timeZoneId) &&
+              item.locatedInTimeZoneQualifiers_.get(timeZoneId).containsKey(PappliesToPart)) {
+            for (int appliesToPartValue : item.locatedInTimeZoneQualifiers_.get(timeZoneId).get(PappliesToPart)) {
+              if (items.get(appliesToPartValue).locatedInTimeZone_ == null)
+                messages.add("Item " + item + " time zone applies to part without time zone " + items.get(appliesToPartValue));
+            }
+          }
+        }
+      }
+    }
+    System.out.println(" done.");
+
     for (int[] chain : subclassOfLoopItems.values()) {
       String message = "subclassOf loop";
       for (int id : chain)
@@ -572,7 +609,7 @@ public class WikidataJava {
       while ((line = reader.readLine()) != null) {
         ++nLines;
         if (nLines % 5000000 == 0) {
-          System.out.println("N itemEnLabels lines " + nLines + ", totalMemory " +
+          System.out.println("N itemEnLabels lines " + nLines + ", total memory GB " +
             Runtime.getRuntime().totalMemory() / 1000000000.0);
         }
 
@@ -640,6 +677,39 @@ public class WikidataJava {
        "located in time zone", 
        (Item obj, int[] x) -> { obj.locatedInTimeZone_ = x; });
 
+    System.out.print("Loading locatedInTimeZoneQualifiers ...");
+    Set<Integer> debugQualifierPropertyIds = new HashSet<>();
+    try (FileReader file = new FileReader(new File(dumpDir, "locatedInTimeZoneQualifiers.tsv").getAbsolutePath());
+         BufferedReader reader = new BufferedReader(file)) {
+      HashSet valueSet = new HashSet<>();
+      String line;
+      while ((line = reader.readLine()) != null) {
+        String[] splitLine = line.split("\\t");
+        int itemId = Integer.parseInt(splitLine[0]);
+        int itemPropertyId = Integer.parseInt(splitLine[1]);
+        int qualifierPropertyId = Integer.parseInt(splitLine[2]);
+        debugQualifierPropertyIds.add(qualifierPropertyId);
+        valueSet.clear();
+        for (int i = 3; i < splitLine.length; ++i)
+          valueSet.add(Integer.parseInt(splitLine[i]));
+
+        Item item = items_.get(itemId);
+        if (item.locatedInTimeZoneQualifiers_ == null)
+          item.locatedInTimeZoneQualifiers_ = new HashMap<>();
+
+        Map<Integer, int[]> qualifierValuesMap =
+          item.locatedInTimeZoneQualifiers_.getOrDefault(itemPropertyId, null);
+        if (qualifierValuesMap == null) {
+          qualifierValuesMap = new HashMap<>();
+          item.locatedInTimeZoneQualifiers_.put(itemPropertyId, qualifierValuesMap);
+        }
+        qualifierValuesMap.put(qualifierPropertyId, setToArray(valueSet));
+      }
+    }
+    System.out.println(" done.");
+    for (int id : debugQualifierPropertyIds)
+      System.out.println("Debug qualifier property P" + id + " " + properties_.get(id));
+
     loadPropertyFromDump
       (new File(dumpDir, "propertySubpropertyOf.tsv").getAbsolutePath(), properties_,
        "subproperty of", 
@@ -706,7 +776,7 @@ public class WikidataJava {
   private static void
   processLine
     (String line, int nLines, Map<Integer, Item> items,
-     Map<Integer, Property> properties, List<String> messages)
+     Map<Integer, Property> properties, List<String> messages) throws IOException
   {
     // Assume one item or property per line.
 
@@ -740,23 +810,27 @@ public class WikidataJava {
   }
 
   private static Item
-  processItem(String line, int id, List<String> messages)
+  processItem(String line, int id, List<String> messages) throws IOException
   {
     Item item = new Item(id, getEnLabel(line));
 
     item.instanceOf_ = setToArray
-      (getPropertyValues(item, "instance of", line, PinstanceOf, messages, false));
+      (getPropertyValues(item, "instance of", line, PinstanceOf, messages, false, null));
     item.subclassOf_ = setToArray
-      (getPropertyValues(item, "subclass of", line, PsubclassOf, messages, false));
+      (getPropertyValues(item, "subclass of", line, PsubclassOf, messages, false, null));
     item.partOf_ = setToArray
-      (getPropertyValues(item, "part of", line, PpartOf, messages, false));
+      (getPropertyValues(item, "part of", line, PpartOf, messages, false, null));
     item.country_ = setToArray
-      (getPropertyValues(item, "country", line, Pcountry, messages, false));
+      (getPropertyValues(item, "country", line, Pcountry, messages, false, null));
     item.locatedInTheAdministrativeTerritorialEntity_ = setToArray
       (getPropertyValues(item, "located in the administrative territorial entity", line,
-       PlocatedInTheAdministrativeTerritorialEntity, messages, false));
+       PlocatedInTheAdministrativeTerritorialEntity, messages, false, null));
+    List<Map<Integer, Map<Integer, int[]>>> qualifiers = new ArrayList<>();
+    qualifiers.add(null);
     item.locatedInTimeZone_ = setToArray(getPropertyValues
-      (item, "located in time zone", line, PlocatedInTimeZone, messages, false));
+      (item, "located in time zone", line, PlocatedInTimeZone, messages, false,
+       qualifiers));
+    item.locatedInTimeZoneQualifiers_ = qualifiers.get(0);
 
     return item;
   }
@@ -787,7 +861,7 @@ public class WikidataJava {
 
   private static Property
   processProperty
-    (String line, int id, String datatypeString, List<String> messages)
+    (String line, int id, String datatypeString, List<String> messages) throws IOException
   {
     String enLabel = getEnLabel(line);
     if (enLabel == "")
@@ -795,7 +869,7 @@ public class WikidataJava {
     Property property = new Property(id, enLabel);
 
     property.subpropertyOf_ = setToArray
-      (getPropertyValues(null, "subproperty of", line, 1647, messages, true));
+      (getPropertyValues(null, "subproperty of", line, 1647, messages, true, null));
     property.datatype_ = getDatatypeFromString(datatypeString);
 
     return property;
@@ -804,10 +878,12 @@ public class WikidataJava {
   private static Set<Integer>
   getPropertyValues
     (Item item, String propertyName, String line, int propertyId,
-     List<String> messages, boolean objIsProperty)
+     List<String> messages, boolean objIsProperty,
+     List<Map<Integer, Map<Integer, int[]>>> qualifiersReturn) throws IOException
   {
     String qualifiersStart = ",\"qualifiers\":";
     HashSet<Integer> valueSet = new HashSet<>();
+    Map<Integer, Map<Integer, int[]>> qualifiers = new HashMap<>();
 
     Pattern pattern = Pattern.compile
       ("\"mainsnak\":\\{\"snaktype\":\"value\",\"property\":\"P" + propertyId +
@@ -822,19 +898,23 @@ public class WikidataJava {
         // TODO: Check for property self reference.
         valueSet.add(value);
       else {
-        int iMatchEnd = matcher.end(0) + matcher.group(0).length();
         if (value != item.Id) {
-          // Debug: Taking the substring is inefficient.
-          boolean hasQualifiers = (iMatchEnd < line.length() &&
-            line.substring(iMatchEnd).startsWith(qualifiersStart));
+          int iQualifiersStartEnd = matcher.end(0) + qualifiersStart.length();
+          boolean hasQualifiers = (iQualifiersStartEnd < line.length() &&
+            line.regionMatches(matcher.end(0), qualifiersStart, 0, qualifiersStart.length()));
           if (hasQualifiers) {
-/*
+
             if (propertyName.equals("country") ||
-                propertyName.equals("located in the administrative territorial entity") ||
-                propertyName.equals("located in time zone"))
+                propertyName.equals("located in the administrative territorial entity"))
               // Debug: for now, skip qualified values.
               continue;
-*/
+
+            if (qualifiersReturn != null) {
+              Map<Integer, int[]> qualifiersValues = readQualifiers
+                (line, iQualifiersStartEnd);
+              if (qualifiersValues.size() > 0)
+                qualifiers.put(value, qualifiersValues);
+            }
           }
 
           valueSet.add(value);
@@ -847,10 +927,114 @@ public class WikidataJava {
       }
     }
 
+    if (qualifiersReturn != null)
+      qualifiersReturn.set(0, qualifiers.size() > 0 ? qualifiers : null);
+
     if (valueSet.isEmpty())
       return null;
     else
       return valueSet;
+  }
+
+  /**
+   * Read the JSON object which has multiple qualifiers.
+   * @param json The string containing the JSON qualifiers.
+   * @param iStart The starting index in json of the qualifiers.
+   * @return A Map where the key is the qualifier property ID and the value is
+   * an array of item ID values.
+   */
+  private static Map<Integer, int[]>
+  readQualifiers(String json, int iStart) throws IOException
+  {
+    Map<Integer, int[]> result = new HashMap<>();
+
+    try (StringReader stringReader = new StringReader(json)) {
+      stringReader.skip(iStart);
+
+      try (JsonReader reader = new JsonReader(stringReader)) {
+        reader.beginObject();
+        while (reader.hasNext()) {
+          // Ignore the name like "P518". We'll get the propertyId below.
+          reader.nextName();
+
+          int previousPropertyId = 0;
+          Set<Integer> valueItemIdSet = new HashSet<>();
+
+          // Read the array of values.
+          reader.beginArray();
+          while (reader.hasNext()) {
+            int propertyId = 0;
+            int valueItemId = 0;
+
+            // Read the value object.
+            reader.beginObject();
+            while (reader.hasNext()) {
+              String name = reader.nextName();
+
+              if (name.equals("property")) {
+                String value = reader.nextString();
+                if (value.startsWith("P")) {
+                  propertyId = Integer.parseInt(value.substring(1));
+                  
+                  if (previousPropertyId == 0)
+                    previousPropertyId = propertyId;
+                  else {
+                    if (propertyId != previousPropertyId)
+                      // We don't expect this to happen.
+                      throw new Error("Unexpected change in qualifier property ID");
+                  }
+                }
+              }
+              else if (name.equals("datavalue")) {
+                // Read the datavalue object.
+                reader.beginObject();
+                while (reader.hasNext()) {
+                  name = reader.nextName();
+
+                  if (name.equals("value")) {
+                    // Read the datavalue value object.
+                    reader.beginObject();
+                    while (reader.hasNext()) {
+                      name = reader.nextName();
+
+                      if (name.equals("id")) {
+                        String value = reader.nextString();
+                        if (value.startsWith("Q"))
+                          valueItemId = Integer.parseInt(value.substring(1));
+                      }
+                      else
+                        reader.skipValue();
+                    }
+
+                    reader.endObject();
+                  }
+                  else
+                    reader.skipValue();
+                }
+
+                reader.endObject();
+              }
+              else
+                reader.skipValue();
+            }
+
+            reader.endObject();
+
+            if (propertyId > 0 && valueItemId > 0)
+              valueItemIdSet.add(valueItemId);
+          }
+
+          reader.endArray();
+
+          if (previousPropertyId > 0 && valueItemIdSet.size() > 0)
+            result.put(previousPropertyId, setToArray(valueItemIdSet));
+        }
+
+        reader.endObject();
+      }
+    }
+
+    return result;
   }
 
   private static String
@@ -898,12 +1082,15 @@ public class WikidataJava {
   public interface SetIntArray<T> { void setIntArray(T obj, int[] values); }
 
   public static int QEntity = 35120;
+  public static int QTimeZone = 12143;
+  public static int QTimeZoneNamedForAUtcOffset = 17272482;
+  public static int Pcountry = 17;
   public static int PinstanceOf = 31;
+  public static int PlocatedInTheAdministrativeTerritorialEntity = 131;
   public static int PsubclassOf = 279;
   public static int PpartOf = 361;
-  public static int Pcountry = 17;
-  public static int PlocatedInTheAdministrativeTerritorialEntity = 131;
   public static int PlocatedInTimeZone = 421;
+  public static int PappliesToPart = 518;
   private static final Gson gson_ = new Gson();
   private static final Pattern itemPattern_ = Pattern.compile
     ("^\\{\"type\":\"item\",\"id\":\"Q(\\d+)");
