@@ -511,8 +511,11 @@ public class WikidataJava {
   private static int[]
   debugGetLocatedInTheAdministrativeTerritorialEntityAndSubProperties(Item item)
   {
-    if (item.locatedInTheAdministrativeTerritorialEntity_ == null)
+    if (item.locatedInTheAdministrativeTerritorialEntity_ == null &&
+        item.country_ == null)
       return null;
+    else if (item.locatedInTheAdministrativeTerritorialEntity_ == null)
+      return item.country_;
     else if (item.country_ == null)
       return item.locatedInTheAdministrativeTerritorialEntity_;
     else {
