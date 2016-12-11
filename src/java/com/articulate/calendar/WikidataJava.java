@@ -1056,6 +1056,8 @@ public class WikidataJava {
                       }
 
                       reader.endObject();
+                      if (valueItemId == 0)
+                        valueItemId = QNull; // debug
                     }
                     else
                       reader.skipValue();
@@ -1145,6 +1147,7 @@ public class WikidataJava {
 
   public static int QTimeZone = 12143;
   public static int QEntity = 35120;
+  public static int QNull = 543287;
   public static int QTimeZoneNamedForAUtcOffset = 17272482;
   public static int QIanaTimeZone = 17272692;
   public static int QSeasonalTimeZone = 17280916;
