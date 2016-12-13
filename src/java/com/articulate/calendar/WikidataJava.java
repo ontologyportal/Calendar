@@ -786,7 +786,7 @@ public class WikidataJava {
           setQualifiers.setQualifiersMap(obj, new HashMap<>());
 
         Map<Integer, int[]> qualifierValuesMap =
-          getQualifiers.getQualifiersMap(obj).getOrDefault(itemPropertyId, null);
+          getQualifiers.getQualifiersMap(obj).get(itemPropertyId);
         if (qualifierValuesMap == null) {
           qualifierValuesMap = new HashMap<>();
           getQualifiers.getQualifiersMap(obj).put(itemPropertyId, qualifierValuesMap);
@@ -804,7 +804,7 @@ public class WikidataJava {
     for (Item item : items_.values()) {
       if (item.instanceOf_ != null) {
         for (int id : item.instanceOf_) {
-          Item value = items_.getOrDefault(id, null);
+          Item value = items_.get(id);
           if (value != null)
             value.addHasInstance(item.Id);
         }
@@ -812,7 +812,7 @@ public class WikidataJava {
 
       if (item.subclassOf_ != null) {
         for (int id : item.subclassOf_) {
-          Item value = items_.getOrDefault(id, null);
+          Item value = items_.get(id);
           if (value != null)
             value.addHasSubclass(item.Id);
         }
@@ -820,7 +820,7 @@ public class WikidataJava {
 
       if (item.partOf_ != null) {
         for (int id : item.partOf_) {
-          Item value = items_.getOrDefault(id, null);
+          Item value = items_.get(id);
           if (value != null)
             value.addHasPart(item.Id);
         }
@@ -1158,6 +1158,8 @@ public class WikidataJava {
   public static int PpartOf = 361;
   public static int PlocatedInTimeZone = 421;
   public static int PappliesToPart = 518;
+  public static int PStartTime = 580;
+  public static int PEndTime = 582;
   private static final Gson gson_ = new Gson();
   private static final Pattern itemPattern_ = Pattern.compile
     ("^\\{\"type\":\"item\",\"id\":\"Q(\\d+)");
