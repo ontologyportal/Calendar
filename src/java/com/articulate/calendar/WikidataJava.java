@@ -101,6 +101,7 @@ public class WikidataJava {
     public Set<Integer> hasSubclass_ = null;
     public int[] partOf_ = null;
     public Set<Integer> hasPart_ = null;
+    public int[] saidToBeTheSameAs_ = null;
     public int[] country_ = null;
     public Map<Integer, Map<Integer, int[]>> countryQualifiers_ = null;
     public int[] locatedInTheAdministrativeTerritorialEntity_ = null;
@@ -258,6 +259,9 @@ public class WikidataJava {
     dumpProperty
       (items, (Item obj) -> obj.partOf_,
        new File(dumpDir, "partOf.tsv").getAbsolutePath());
+    dumpProperty
+      (items, (Item obj) -> obj.saidToBeTheSameAs_,
+       new File(dumpDir, "saidToBeTheSameAs.tsv").getAbsolutePath());
     dumpProperty
       (items, (Item obj) -> obj.country_,
        new File(dumpDir, "country.tsv").getAbsolutePath());
@@ -508,6 +512,202 @@ public class WikidataJava {
       nHasLocatedInTheAdministrativeTerritorialEntityLoop);
   }
 
+  /**
+   * Get the valid time zone for each location
+   * @param items The map of Item ID with its Item.
+   * @return A map where the key is the Item ID of a location and the value
+   * is its time zone ID.
+   */
+  public static Map<Integer, Integer>
+  getLocationTimeZones(Map<Integer, Item> items)
+  {
+    Map<Integer, Integer> result = new HashMap<>();
+
+    for (Map.Entry<Integer, Item> entry : items.entrySet()) {
+      Item item = entry.getValue();
+      int timeZoneId = getUtcTimeZoneWithParentLocation(item, items);
+      if (timeZoneId < 0)
+        continue;
+
+      result.put(entry.getKey(), timeZoneId);
+    }
+
+    return result;
+  }
+
+  /**
+   * Get the time zone ID of the item or one of its parent locations where the
+   * time zone is the unique value which is not for daylight saving. Time
+   * promotes a time zone like "Central European Time" to the time zone with
+   * UTC offset. This finds a parent location using
+   * locatedInTheAdministrativeTerritorialEntity_ or country_.
+   * @param item The Item to check.
+   * @param items The Items map for looking up the time zone with UTC offset.
+   * @return The time zone's Item ID, or -1 if not found.
+   */
+  private static int
+  getUtcTimeZoneWithParentLocation(Item item, Map<Integer, Item> items)
+  {
+    Item currentItem = item;
+    while (true) {
+      int timeZoneId = getUtcTimeZone(currentItem, items);
+      if (timeZoneId >= 0)
+        return timeZoneId;
+
+      if (currentItem.hasLocatedInTheAdministrativeTerritorialEntityLoop_)
+        return -1;
+
+      // TODO: Get the one with OK qualifiers.
+      int[] locatedIn = currentItem.locatedInTheAdministrativeTerritorialEntity_ != null ?
+        currentItem.locatedInTheAdministrativeTerritorialEntity_ : currentItem.country_;
+      if (!(locatedIn != null && locatedIn.length == 1))
+        // TODO: Search among mulitple parents.
+        return -1;
+
+      currentItem = items.get(locatedIn[0]);
+      if (currentItem == null)
+        return -1;
+    }
+  }
+
+  /**
+   * Get the item's time zone ID where the time zone is the unique value
+   * which is not for daylight saving. Time promotes a time zone like
+   * "Central European Time" to the time zone with UTC offset. This does not
+   * check "parent" items that this may be located in.
+   * @param item The Item to check.
+   * @param items The Items map for looking up the time zone with UTC offset.
+   * @return The time zone's Item ID, or -1 if not found.
+   */
+  private static int
+  getUtcTimeZone(Item item, Map<Integer, Item> items)
+  {
+    if (item.locatedInTimeZone_ == null)
+      return -1;
+
+    int result = -1;
+    for (int timeZone : item.locatedInTimeZone_) {
+      // Try to disqulaify based on qualifiers.
+      if (item.locatedInTimeZoneQualifiers_ != null &&
+          item.locatedInTimeZoneQualifiers_.containsKey(timeZone)) {
+        boolean isValid = true;
+        for (Map.Entry<Integer, int[]> entry 
+             : item.locatedInTimeZoneQualifiers_.get(timeZone).entrySet()) {
+          if (entry.getKey() == PvalidInPeriod) {
+            if (entry.getValue().length != 1) {
+              System.out.println
+                ("Item " + item + " has multiple time zone valid in period values");
+              isValid = false;
+              break;
+            }
+
+            if (entry.getValue()[0] == QStandardTime) {
+              // Standard time is OK.
+            }
+            else if (entry.getValue()[0] == QDaylightSavingTime) {
+              // Reject time zones for daylight saving time.
+              isValid = false;
+              break;
+            }
+            else {
+              System.out.println
+                ("Item " + item + " has an unrecognized time zone valid in period value " + entry.getValue()[0]);
+              // TODO: We should explicitly recognize unknown values to reject.
+              isValid = false;
+              break;
+            }
+          }
+          else if (entry.getKey() == PstartTime) {
+            // A start time is OK. We reject an end time below.
+          }
+          else if (entry.getKey() == PendTime) {
+            // Reject an entry with an end time qualifier (assuming the end time is in the past).
+            isValid = false;
+            break;
+          }
+          else if (entry.getKey() == PappliesToPart) {
+            // Reject a time zone with applies to part. Assume the part has its own.
+            isValid = false;
+            break;
+          }
+          else if (entry.getKey() == PsubjectOf) {
+            // A subject of qualifier is OK, assuming it is a comment.
+          }
+          else
+            throw new Error
+              ("Item " + item + " has an unrecognized time zone qualifier " + entry.getKey());
+        }
+
+        if (!isValid)
+          // Try the next time zone.
+          continue;
+      }
+
+      // The timeZone is valid.
+      int timeZoneWithUtcOffset = getTimeZoneWithUtcOffset(timeZone, items);
+      if (timeZoneWithUtcOffset < 0) {
+        System.out.println("Item " + item + " has no time zone with UTC offset");
+        continue;
+      }
+
+      if (result >= 0 && result != timeZoneWithUtcOffset) {
+        System.out.println("Item " + item + " has multiple valid time zones " +
+          result + " and " + timeZoneWithUtcOffset);
+        // Ignore multiple valid results.
+        return -1;
+      }
+      result = timeZoneWithUtcOffset;
+    }
+
+    return result;
+  }
+
+  /**
+   * Get the item's time zone ID where the time zone is the unique value
+   * which is not for daylight saving. Time promotes a time zone like
+   * "Central European Time" to the time zone with UTC offset. This does not
+   * check "parent" items that this may be located in.
+   * @param timeZoneId The ID of the time zone Item to check.
+   * @param items The Items map for looking up the time zone with UTC offset.
+   * @return The time zone's Item ID, or -1 if not found.
+   */
+  private static int
+  getTimeZoneWithUtcOffset(int timeZoneId, Map<Integer, Item> items)
+  {
+    Item timeZone = items.get(timeZoneId);
+    if (timeZone.instanceOf_ != null &&
+        contains(timeZone.instanceOf_, QTimeZoneNamedForAUtcOffset))
+      return timeZoneId;
+
+    // For now, only check one level of indirection.
+    int parentTimeZoneId;
+    if (timeZone.locatedInTimeZone_ != null &&
+        timeZone.locatedInTimeZone_.length == 1 &&
+        timeZone.locatedInTimeZoneQualifiers_ == null)
+      parentTimeZoneId = timeZone.locatedInTimeZone_[0];
+    else if (timeZone.saidToBeTheSameAs_ != null &&
+             timeZone.saidToBeTheSameAs_.length == 1)
+      parentTimeZoneId = timeZone.saidToBeTheSameAs_[0];
+    else
+      parentTimeZoneId = -1;
+
+    if (parentTimeZoneId >= 0) {
+      Item parentTimeZone = items.get(parentTimeZoneId);
+      if (parentTimeZone.instanceOf_ != null &&
+          contains(parentTimeZone.instanceOf_, QTimeZoneNamedForAUtcOffset))
+        return parentTimeZoneId;
+      else {
+        System.out.println("The parent time zone of " + timeZone +
+          " is not a time zone with UTC offset");
+        return -1;
+      }
+    }
+    else {
+      System.out.println("Time zone " + timeZone + " does not have a parent time zone");
+      return -1;
+    }
+  }
+
   private static int[]
   debugGetLocatedInTheAdministrativeTerritorialEntityAndSubProperties(Item item)
   {
@@ -700,6 +900,9 @@ public class WikidataJava {
       (new File(dumpDir, "partOf.tsv").getAbsolutePath(), items_, "part of", 
        (Item obj, int[] x) -> { obj.partOf_ = x; });
     loadPropertyFromDump
+      (new File(dumpDir, "saidToBeTheSameAs.tsv").getAbsolutePath(), items_, "said to be the same as",
+       (Item obj, int[] x) -> { obj.saidToBeTheSameAs_ = x; });
+    loadPropertyFromDump
       (new File(dumpDir, "country.tsv").getAbsolutePath(), items_, "country", 
        (Item obj, int[] x) -> { obj.country_ = x; });
     loadQualifiersFromDump
@@ -877,8 +1080,11 @@ public class WikidataJava {
       (getPropertyValues(item, "subclass of", line, PsubclassOf, messages, false, null));
     item.partOf_ = setToArray
       (getPropertyValues(item, "part of", line, PpartOf, messages, false, null));
+    item.saidToBeTheSameAs_ = setToArray
+      (getPropertyValues(item, "said to be the same as", line, PsaidToBeTheSameAs, messages, false, null));
     item.country_ = setToArray
-      (getPropertyValues(item, "country", line, Pcountry, messages, false, null));
+      (getPropertyValues(item, "country", line, Pcountry, messages, false, qualifiers));
+    item.countryQualifiers_ = qualifiers.get(0);
     item.locatedInTheAdministrativeTerritorialEntity_ = setToArray
       (getPropertyValues(item, "located in the administrative territorial entity", line,
        PlocatedInTheAdministrativeTerritorialEntity, messages, false, qualifiers));
@@ -1005,14 +1211,14 @@ public class WikidataJava {
           // Ignore the name like "P518". We'll get the propertyId below.
           reader.nextName();
 
-          int previousPropertyId = 0;
+          int previousPropertyId = -1;
           Set<Integer> valueItemIdSet = new HashSet<>();
 
           // Read the array of values.
           reader.beginArray();
           while (reader.hasNext()) {
-            int propertyId = 0;
-            int valueItemId = 0;
+            int propertyId = -1;
+            int valueItemId = -1;
 
             // Read the value object.
             reader.beginObject();
@@ -1024,7 +1230,7 @@ public class WikidataJava {
                 if (value.startsWith("P")) {
                   propertyId = Integer.parseInt(value.substring(1));
                   
-                  if (previousPropertyId == 0)
+                  if (previousPropertyId < 0)
                     previousPropertyId = propertyId;
                   else {
                     if (propertyId != previousPropertyId)
@@ -1056,7 +1262,7 @@ public class WikidataJava {
                       }
 
                       reader.endObject();
-                      if (valueItemId == 0)
+                      if (valueItemId < 0)
                         valueItemId = QNull; // debug
                     }
                     else
@@ -1074,13 +1280,13 @@ public class WikidataJava {
 
             reader.endObject();
 
-            if (propertyId > 0 && valueItemId > 0)
+            if (propertyId >= 0 && valueItemId >= 0)
               valueItemIdSet.add(valueItemId);
           }
 
           reader.endArray();
 
-          if (previousPropertyId > 0 && valueItemIdSet.size() > 0)
+          if (previousPropertyId >= 0 && valueItemIdSet.size() > 0)
             result.put(previousPropertyId, setToArray(valueItemIdSet));
         }
 
@@ -1147,7 +1353,9 @@ public class WikidataJava {
 
   public static int QTimeZone = 12143;
   public static int QEntity = 35120;
+  public static int QDaylightSavingTime = 36669;
   public static int QNull = 543287;
+  public static int QStandardTime = 1777301;
   public static int QTimeZoneNamedForAUtcOffset = 17272482;
   public static int QIanaTimeZone = 17272692;
   public static int QSeasonalTimeZone = 17280916;
@@ -1157,9 +1365,13 @@ public class WikidataJava {
   public static int PsubclassOf = 279;
   public static int PpartOf = 361;
   public static int PlocatedInTimeZone = 421;
+  public static int PsaidToBeTheSameAs = 460;
   public static int PappliesToPart = 518;
-  public static int PStartTime = 580;
-  public static int PEndTime = 582;
+  public static int PstartTime = 580;
+  public static int PendTime = 582;
+  public static int PsubjectOf = 805;
+  public static int PvalidInPeriod = 1264;
+  public static int PtimeZoneOffset = 2907;
   private static final Gson gson_ = new Gson();
   private static final Pattern itemPattern_ = Pattern.compile
     ("^\\{\"type\":\"item\",\"id\":\"Q(\\d+)");
