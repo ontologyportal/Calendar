@@ -240,12 +240,12 @@ public class WikidataJava {
       (System.currentTimeMillis() - startMs) / 60000.0);
 
     System.out.print("Writing dump files ...");
-    try (FileWriter file = new FileWriter(new File(dumpDir, "itemEnLabels.tsv"));
+    try (FileWriter file = new FileWriter(new File(dumpDir, "itemTermFormatEnglishLanguage.kif"));
          BufferedWriter writer = new BufferedWriter(file)) {
       for (Map.Entry<Integer, Item> entry : items.entrySet()) {
-        // Json-encode the value, omitting surrounding quotes.
-        String jsonString = gson_.toJson(entry.getValue().getEnLabel());
-        writer.write(entry.getKey() + "\t" + jsonString.substring(1, jsonString.length() - 1));
+        // Json-encode the value.
+        writer.write("(termFormat EnglishLanguage Q" + entry.getKey() + " " +
+          gson_.toJson(entry.getValue().getEnLabel()) + ")");
         writer.newLine();
       }
     }
@@ -952,7 +952,7 @@ public class WikidataJava {
   private void
   loadFromDump(String dumpDir) throws FileNotFoundException, IOException
   {
-    try (FileReader file = new FileReader(new File(dumpDir, "itemEnLabels.tsv"));
+    try (FileReader file = new FileReader(new File(dumpDir, "itemTermFormatEnglishLanguage.kif"));
          BufferedReader reader = new BufferedReader(file)) {
       int nLines = 0;
       String line;
@@ -963,12 +963,12 @@ public class WikidataJava {
             Runtime.getRuntime().totalMemory() / 1000000000.0);
         }
 
-        String[] splitLine = line.split("\\t");
-        int id = Integer.parseInt(splitLine[0]);
-        String label = splitLine.length < 2 ? ""
-          : gson_.fromJson("\"" + splitLine[1] + "\"", String.class);
+        Matcher matcher = itemTermFormatEnglishLanguagePattern_.matcher(line);
+        if (!matcher.find())
+          throw new Error("Can't match EnglishLanguage pattern: " + line);
+        int id = Integer.parseInt(matcher.group(1));
+        String label = gson_.fromJson("\"" + matcher.group(2) + "\"", String.class);
         if (!items_.containsKey(id))
-          // Decode the Json value.
           items_.put(id, new Item(id, label));
       }
     }
@@ -1523,4 +1523,6 @@ public class WikidataJava {
     ("^\\{\"type\":\"property\",\"datatype\":\"([\\w-]+)\",\"id\":\"P(\\d+)");
   private static final Pattern utcPattern_ = Pattern.compile
     ("^UTC([+\\−])(\\d\\d)\\:(\\d\\d)$");
+  private static final Pattern itemTermFormatEnglishLanguagePattern_ = Pattern.compile
+    ("^\\(termFormat EnglishLanguage Q(\\d+) \"(.*)\"\\)$");
 }
