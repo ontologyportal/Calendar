@@ -516,20 +516,21 @@ public class WikidataJava {
    * Get the valid time zone for each location
    * @param items The map of Item ID with its Item.
    * @return A map where the key is the Item ID of a location and the value
-   * is its time zone ID.
+   * is its time zone offset in seconds.
    */
   public static Map<Integer, Integer>
-  getLocationTimeZones(Map<Integer, Item> items)
+  getLocationTimeZoneOffsets(Map<Integer, Item> items)
   {
     Map<Integer, Integer> result = new HashMap<>();
 
     for (Map.Entry<Integer, Item> entry : items.entrySet()) {
       Item item = entry.getValue();
-      int timeZoneId = getUtcTimeZoneWithParentLocation(item, items);
+      int timeZoneId = getItemUtcTimeZoneWithParentLocation(item, items);
       if (timeZoneId < 0)
         continue;
 
-      result.put(entry.getKey(), timeZoneId);
+      result.put
+        (entry.getKey(), getUtcOffsetSeconds(items.get(timeZoneId).getEnLabel()));
     }
 
     return result;
@@ -537,37 +538,134 @@ public class WikidataJava {
 
   /**
    * Get the time zone ID of the item or one of its parent locations where the
-   * time zone is the unique value which is not for daylight saving. Time
+   * time zone is the unique value which is not for daylight saving. This
    * promotes a time zone like "Central European Time" to the time zone with
-   * UTC offset. This finds a parent location using
-   * locatedInTheAdministrativeTerritorialEntity_ or country_.
+   * UTC offset. This fails if multiple parent locations have a different time
+   * zone.
    * @param item The Item to check.
    * @param items The Items map for looking up the time zone with UTC offset.
    * @return The time zone's Item ID, or -1 if not found.
    */
   private static int
-  getUtcTimeZoneWithParentLocation(Item item, Map<Integer, Item> items)
+  getItemUtcTimeZoneWithParentLocation(Item item, Map<Integer, Item> items)
   {
-    Item currentItem = item;
-    while (true) {
-      int timeZoneId = getUtcTimeZone(currentItem, items);
-      if (timeZoneId >= 0)
-        return timeZoneId;
+    int timeZoneId = getItemUtcTimeZone(item, items);
+    if (timeZoneId >= 0)
+      return timeZoneId;
 
-      if (currentItem.hasLocatedInTheAdministrativeTerritorialEntityLoop_)
-        return -1;
+    if (item.hasLocatedInTheAdministrativeTerritorialEntityLoop_)
+      return -1;
 
-      // TODO: Get the one with OK qualifiers.
-      int[] locatedIn = currentItem.locatedInTheAdministrativeTerritorialEntity_ != null ?
-        currentItem.locatedInTheAdministrativeTerritorialEntity_ : currentItem.country_;
-      if (!(locatedIn != null && locatedIn.length == 1))
-        // TODO: Search among mulitple parents.
-        return -1;
+    // Debug: We should also check country. But how to avoid non-location items (and their weird qualifiers)?
+    if (item.locatedInTheAdministrativeTerritorialEntity_ != null) {
+      for (int parentItemId : item.locatedInTheAdministrativeTerritorialEntity_) {
+        if (item.locatedInTheAdministrativeTerritorialEntityQualifiers_ != null &&
+            !locationQualifiersAreOk
+              (item,
+               item.locatedInTheAdministrativeTerritorialEntityQualifiers_.get(parentItemId)))
+          // Try the next parent location.
+          continue;
 
-      currentItem = items.get(locatedIn[0]);
-      if (currentItem == null)
-        return -1;
+        // Recurse.
+        if (!items.containsKey(parentItemId))
+          continue;
+        int parentTimeZoneId =
+          getItemUtcTimeZoneWithParentLocation(items.get(parentItemId), items);
+        if (parentTimeZoneId < 0)
+          continue;
+        if (timeZoneId >= 0 && parentTimeZoneId != timeZoneId) {
+          System.out.println("Item " + item + " time zone " + items.get(timeZoneId) +
+            " has a parent " + items.get(parentItemId) +
+            " with a different time zone " + items.get(parentTimeZoneId));
+          // Different time zones, so fail.
+          return -1;
+        }
+
+        timeZoneId = parentTimeZoneId;
+      }
     }
+
+    return timeZoneId;
+  }
+
+  private static boolean
+  locationQualifiersAreOk(Item item, Map<Integer, int[]> qualifiers)
+  {
+    if (qualifiers == null)
+      return true;
+  
+    for (Map.Entry<Integer, int[]> entry : qualifiers.entrySet()) {
+      if (entry.getKey() == PstartTime ||
+          entry.getKey() == PearliestDate ||
+          entry.getKey() == Pinception) {
+        // A start time is OK. We reject an end time below.
+      }
+      else if (entry.getKey() == PendTime ||
+               entry.getKey() == PdiscontinuedDate ||
+               entry.getKey() == PdissolvedOrAbolished ||
+               entry.getKey() == PlatestDate ||
+               entry.getKey() == PpointInTime)
+        // Reject an entry with an end time or discontinued date or point in
+        //   time or latest date qualifier (assuming the time is in the past).
+        return false;
+      else if (entry.getKey() == PappliesToPart ||
+               entry.getKey() == PpartOf)
+        // Reject a location with applies to part or part of  since we
+        // don't know if it changes the location.
+        return false;
+      else if (entry.getKey() == PcoordinateLocation)
+        // Reject a location with coordinate location since we
+        // don't know if it is a random location.
+        return false;
+      else if (entry.getKey() == Plocation || entry.getKey() == Pcountry ||
+               entry.getKey() == PlocatedInTheAdministrativeTerritorialEntity)
+        // Reject a location with a qualifier of location or country or
+        //   located in the administrative territorial entity since we don't
+        //   know if changes the location.
+        // TODO: This is normally on "country". Should we just replace the
+        //   country value with this value?
+        return false;
+      else if (entry.getKey() == PlocatedOnStreet ||
+               entry.getKey() == PstreetNumber) {
+        // A located on street or street number qualifier is OK, assuming it
+        //   is a refinement of the location.
+      }
+      else if (entry.getKey() == PexceptionToConstraint ||
+               entry.getKey() == Pexcluding) {
+        // An exception to constraint or excluding qualifier is OK,
+        //   assuming the excepted item has its own location.
+      }
+      else if (
+               entry.getKey() == Parchitect ||
+               entry.getKey() == PcastMember ||
+               entry.getKey() == Pfollows ||
+               entry.getKey() == PmainRegulatoryText ||
+               entry.getKey() == PreferenceUrl ||
+               entry.getKey() == Preplaces ||
+               entry.getKey() == Pretrieved ||
+               entry.getKey() == PsignificantEvent ||
+               entry.getKey() == PstatedIn ||
+               entry.getKey() == PstatementDisputedBy ||
+               entry.getKey() == PsubjectOf) {
+        // Statements with these qualifiers are OK, assuming they are only
+        //   expository.
+      }
+      else if (entry.getKey() == Pas ||
+               entry.getKey() == PcontainsAdministrativeTerritorialEntity ||
+               entry.getKey() == Pdirection ||
+               entry.getKey() == PinstanceOf ||
+               entry.getKey() == Pof ||
+               entry.getKey() == Pproportion ||
+               entry.getKey() == Puse)
+        // Reject statements with these qualifiers because the semantics are
+        //   unclear.
+        return false;
+      else
+        throw new Error
+          ("Item " + item + " has an unrecognized located in qualifier " + entry.getKey());
+    }
+
+    return true;
   }
 
   /**
@@ -580,7 +678,7 @@ public class WikidataJava {
    * @return The time zone's Item ID, or -1 if not found.
    */
   private static int
-  getUtcTimeZone(Item item, Map<Integer, Item> items)
+  getItemUtcTimeZone(Item item, Map<Integer, Item> items)
   {
     if (item.locatedInTimeZone_ == null)
       return -1;
@@ -631,7 +729,7 @@ public class WikidataJava {
             break;
           }
           else if (entry.getKey() == PsubjectOf) {
-            // A subject of qualifier is OK, assuming it is a comment.
+            // A subject of qualifier is OK, assuming it is only expository.
           }
           else
             throw new Error
@@ -651,8 +749,10 @@ public class WikidataJava {
       }
 
       if (result >= 0 && result != timeZoneWithUtcOffset) {
-        System.out.println("Item " + item + " has multiple valid time zones " +
-          result + " and " + timeZoneWithUtcOffset);
+        if (item.Id != 96 && // Debug: Don't mention Mexico.
+            item.Id != 223)  // Debug: Don't mention Greenland.
+          System.out.println("Item " + item + " has multiple valid time zones " +
+            result + " and " + timeZoneWithUtcOffset);
         // Ignore multiple valid results.
         return -1;
       }
@@ -706,6 +806,22 @@ public class WikidataJava {
       System.out.println("Time zone " + timeZone + " does not have a parent time zone");
       return -1;
     }
+  }
+
+  private static int
+  getUtcOffsetSeconds(String utcOffset)
+  {
+    if (utcOffset.equals("UTC±00:00"))
+      return 0;
+
+    Matcher matcher = utcPattern_.matcher(utcOffset);
+    if (matcher.find()) {
+      int seconds = 3600 * Integer.parseInt(matcher.group(2)) +
+                      60 * Integer.parseInt(matcher.group(3));
+      return matcher.group(1).equals("−") ? -seconds : seconds;
+    }
+    else
+      throw new Error("Can't parse as a UTC offset: \"" + utcOffset + "\"");
   }
 
   private static int[]
@@ -1351,30 +1467,60 @@ public class WikidataJava {
   public interface SetIntArray<T> { void setIntArray(T obj, int[] values); }
   public interface SetQualifiersMap<T> { void setQualifiersMap(T obj, Map<Integer, Map<Integer, int[]>> values); }
 
-  public static int QTimeZone = 12143;
-  public static int QEntity = 35120;
-  public static int QDaylightSavingTime = 36669;
-  public static int QNull = 543287;
-  public static int QStandardTime = 1777301;
-  public static int QTimeZoneNamedForAUtcOffset = 17272482;
-  public static int QIanaTimeZone = 17272692;
-  public static int QSeasonalTimeZone = 17280916;
-  public static int Pcountry = 17;
-  public static int PinstanceOf = 31;
-  public static int PlocatedInTheAdministrativeTerritorialEntity = 131;
-  public static int PsubclassOf = 279;
-  public static int PpartOf = 361;
-  public static int PlocatedInTimeZone = 421;
-  public static int PsaidToBeTheSameAs = 460;
-  public static int PappliesToPart = 518;
-  public static int PstartTime = 580;
-  public static int PendTime = 582;
-  public static int PsubjectOf = 805;
-  public static int PvalidInPeriod = 1264;
-  public static int PtimeZoneOffset = 2907;
+  public static final int QTimeZone = 12143;
+  public static final int QEntity = 35120;
+  public static final int QDaylightSavingTime = 36669;
+  public static final int QNull = 543287;
+  public static final int QStandardTime = 1777301;
+  public static final int QTimeZoneNamedForAUtcOffset = 17272482;
+  public static final int QIanaTimeZone = 17272692;
+  public static final int QSeasonalTimeZone = 17280916;
+  public static final int Pcountry = 17;
+  public static final int PinstanceOf = 31;
+  public static final int Parchitect = 84;
+  public static final int PmainRegulatoryText = 92;
+  public static final int PlocatedInTheAdministrativeTerritorialEntity = 131;
+  public static final int PcontainsAdministrativeTerritorialEntity = 150;
+  public static final int Pfollows = 155;
+  public static final int PcastMember = 161;
+  public static final int PstatedIn = 248;
+  public static final int Plocation = 276;
+  public static final int PsubclassOf = 279;
+  public static final int PpartOf = 361;
+  public static final int Puse = 366;
+  public static final int PlocatedInTimeZone = 421;
+  public static final int PsaidToBeTheSameAs = 460;
+  public static final int PappliesToPart = 518;
+  public static final int Pdirection = 560;
+  public static final int Pinception = 571;
+  public static final int PdissolvedOrAbolished = 576;
+  public static final int PstartTime = 580;
+  public static final int PendTime = 582;
+  public static final int PpointInTime = 585;
+  public static final int PcoordinateLocation = 625;
+  public static final int PlocatedOnStreet = 669;
+  public static final int PstreetNumber = 670;
+  public static final int Pof = 642;
+  public static final int PsignificantEvent = 793;
+  public static final int Pas = 794;
+  public static final int PsubjectOf = 805;
+  public static final int Pretrieved = 813;
+  public static final int PreferenceUrl = 854;
+  public static final int Pexcluding = 1011;
+  public static final int Pproportion = 1107;
+  public static final int PvalidInPeriod = 1264;
+  public static final int PtimeZoneOffset = 2907;
+  public static final int PstatementDisputedBy = 1310;
+  public static final int PearliestDate = 1319;
+  public static final int PlatestDate = 1326;
+  public static final int Preplaces = 1365;
+  public static final int PexceptionToConstraint = 2303;
+  public static final int PdiscontinuedDate = 2669;
   private static final Gson gson_ = new Gson();
   private static final Pattern itemPattern_ = Pattern.compile
     ("^\\{\"type\":\"item\",\"id\":\"Q(\\d+)");
   private static final Pattern propertyPattern_ = Pattern.compile
     ("^\\{\"type\":\"property\",\"datatype\":\"([\\w-]+)\",\"id\":\"P(\\d+)");
+  private static final Pattern utcPattern_ = Pattern.compile
+    ("^UTC([+\\−])(\\d\\d)\\:(\\d\\d)$");
 }
