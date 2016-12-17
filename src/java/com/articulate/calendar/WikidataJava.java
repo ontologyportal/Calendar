@@ -116,33 +116,8 @@ public class WikidataJava {
     private String label_;
     private boolean labelHasId_ = false;
 
-    public static int[] getInstanceOf(Item item) { return item.instanceOf_; }
-    public static void setInstanceOf(Item item, int[] values) { item.instanceOf_ = values; }
-    public static Set<Integer> getHasInstance(Item item) { return item.hasInstance_; }
-    public static int[] getSubclassOf(Item item) { return item.subclassOf_; }
-    public static void setSubclassOf(Item item, int[] values) { item.subclassOf_ = values; }
-    public static Set<Integer> getHasSubclass(Item item) { return item.hasSubclass_; }
-    public static int[] getPartOf(Item item) { return item.partOf_; }
-    public static void setPartOf(Item item, int[] values) { item.partOf_ = values; }
-    public static Set<Integer> getHasPart(Item item) { return item.hasPart_; }
-    public static int[] getCountry(Item item) { return item.country_; }
-    public static void setCountry(Item item, int[] values) { item.country_ = values; }
-    public static int[] getLocatedInTheAdministrativeTerritorialEntity(Item item) { return item.locatedInTheAdministrativeTerritorialEntity_; }
-    public static void setLocatedInTheAdministrativeTerritorialEntity(Item item, int[] values) { item.locatedInTheAdministrativeTerritorialEntity_ = values; }
-    public static int[] getLocatedInTimeZone(Item item) { return item.locatedInTimeZone_; }
-    public static void setLocatedInTimeZone(Item item, int[] values) { item.locatedInTimeZone_ = values; }
-
     public interface SetHasLoop { void setHasLoop(Item item, boolean hasLoop); }
-    public static void setHasSubclassOfLoop(Item item, boolean hasLoop) { item.hasSubclassOfLoop_ = hasLoop; }
-    public static void setHasPartOfLoop(Item item, boolean hasLoop) { item.hasPartOfLoop_ = hasLoop; }
-    public static void setHasCountryLoop(Item item, boolean hasLoop) { item.hasCountryLoop_ = hasLoop; }
-    public static void setHasLocatedInTheAdministrativeTerritorialEntityLoop(Item item, boolean hasLoop) { item.hasLocatedInTheAdministrativeTerritorialEntityLoop_ = hasLoop; }
-
     public interface GetHasLoop { boolean getHasLoop(Item item); }
-    public static boolean getHasSubclassOfLoop(Item item) { return item.hasSubclassOfLoop_; }
-    public static boolean getHasPartOfLoop(Item item) { return item.hasPartOfLoop_; }
-    public static boolean getHasCountryLoop(Item item) { return item.hasCountryLoop_; }
-    public static boolean getHasLocatedInTheAdministrativeTerritorialEntityLoop(Item item) { return item.hasLocatedInTheAdministrativeTerritorialEntityLoop_; }
   }
 
   public static class Property
