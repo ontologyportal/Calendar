@@ -108,6 +108,7 @@ public class WikidataJava {
     public Map<Integer, Map<Integer, int[]>> locatedInTheAdministrativeTerritorialEntityQualifiers_ = null;
     public int[] locatedInTimeZone_ = null;
     public Map<Integer, Map<Integer, int[]>> locatedInTimeZoneQualifiers_ = null;
+    public String[] iataAirportCode_ = null;
     public Set<Integer> debugRootClasses_ = null;
     public boolean hasSubclassOfLoop_ = false;
     public boolean hasPartOfLoop_ = false;
@@ -255,6 +256,9 @@ public class WikidataJava {
     dumpQualifiers
       (items, (Item obj) -> obj.locatedInTimeZoneQualifiers_,
        new File(dumpDir, "locatedInTimeZoneQualifiers.tsv").getAbsolutePath());
+    dumpStringProperty
+      (items, (Item obj) -> obj.iataAirportCode_,
+       new File(dumpDir, "iataAirportCode.tsv").getAbsolutePath());
 
     try (FileWriter file = new FileWriter(new File(dumpDir, "propertyEnLabels.tsv"));
          BufferedWriter writer = new BufferedWriter(file)) {
@@ -635,9 +639,12 @@ public class WikidataJava {
         // Reject statements with these qualifiers because the semantics are
         //   unclear.
         return false;
-      else
+      else {
+        System.out.println
+          ("Item " + item + " has an unrecognized located in qualifier " + entry.getKey());
         throw new Error
           ("Item " + item + " has an unrecognized located in qualifier " + entry.getKey());
+      }
     }
 
     return true;
@@ -898,6 +905,27 @@ public class WikidataJava {
   }
 
   private static <T> void
+  dumpStringProperty
+    (Map<Integer, T> dictionary, GetStringArray<T> getPropertyValues, String filePath)
+    throws IOException
+  {
+    try (FileWriter file = new FileWriter(filePath);
+         BufferedWriter writer = new BufferedWriter(file)) {
+      for (Map.Entry<Integer, T> entry : dictionary.entrySet()) {
+        if (getPropertyValues.getStringArray(entry.getValue()) != null) {
+          writer.write("" + entry.getKey());
+          for (String value : getPropertyValues.getStringArray(entry.getValue())) {
+            // Json-encode the value, omitting surrounding quotes.
+            String jsonString = gson_.toJson(value);
+            writer.write("\t" + jsonString.substring(1, jsonString.length() - 1));
+          }
+          writer.newLine();
+        }
+      }
+    }
+  }
+
+  private static <T> void
   dumpQualifiers
     (Map<Integer, T> dictionary, GetQualifiersMap<T> getQualifiers,
      String filePath) throws IOException
@@ -1018,6 +1046,9 @@ public class WikidataJava {
        "located in time zone",
        (Item obj) -> obj.locatedInTimeZoneQualifiers_,
        (Item obj, Map<Integer, Map<Integer, int[]>> x) -> { obj.locatedInTimeZoneQualifiers_ = x; });
+    loadStringPropertyFromDump
+      (new File(dumpDir, "iataAirportCode.tsv").getAbsolutePath(), items_, "IATA airport code",
+       (Item obj, String[] x) -> { obj.iataAirportCode_ = x; });
 
     loadPropertyFromDump
       (new File(dumpDir, "propertySubpropertyOf.tsv").getAbsolutePath(), properties_,
@@ -1038,7 +1069,7 @@ public class WikidataJava {
 
     try (FileReader file = new FileReader(filePath);
          BufferedReader reader = new BufferedReader(file)) {
-      HashSet valueSet = new HashSet<>();
+      Set<Integer> valueSet = new HashSet<>();
       String line;
       while ((line = reader.readLine()) != null) {
         String[] splitLine = line.split("\\t");
@@ -1048,6 +1079,31 @@ public class WikidataJava {
         for (int i = 1; i < splitLine.length; ++i)
           valueSet.add(Integer.parseInt(splitLine[i]));
         setPropertyValues.setIntArray(obj, setToArray(valueSet));
+      }
+    }
+
+    System.out.println(" done.");
+  }
+
+  private static <T> void
+  loadStringPropertyFromDump
+    (String filePath, Map<Integer, T> dictionary, String propertyLabel,
+     SetStringArray<T> setPropertyValues) throws IOException
+  {
+    System.out.print("Loading property " + propertyLabel + " ...");
+
+    try (FileReader file = new FileReader(filePath);
+         BufferedReader reader = new BufferedReader(file)) {
+      Set<String> valueSet = new HashSet<>();
+      String line;
+      while ((line = reader.readLine()) != null) {
+        String[] splitLine = line.split("\\t");
+        T obj = dictionary.get(Integer.parseInt(splitLine[0]));
+
+        valueSet.clear();
+        for (int i = 1; i < splitLine.length; ++i)
+          valueSet.add(gson_.fromJson("\"" + splitLine[i] + "\"", String.class));
+        setPropertyValues.setStringArray(obj, stringSetToArray(valueSet));
       }
     }
 
@@ -1184,6 +1240,8 @@ public class WikidataJava {
       (item, "located in time zone", line, PlocatedInTimeZone, messages, false,
        qualifiers));
     item.locatedInTimeZoneQualifiers_ = qualifiers.get(0);
+    item.iataAirportCode_ = stringSetToArray
+      (getPropertyStringValues(item, "IATA airport code", line, PiataAirportCode, messages, qualifiers));
 
     return item;
   }
@@ -1196,6 +1254,18 @@ public class WikidataJava {
     int[] result = new int[set.size()];
     int i = 0;
     for (int x : set)
+      result[i++] = x;
+    return result;
+  }
+
+  private static String[] stringSetToArray(Set<String> set)
+  {
+    if (set == null)
+      return null;
+
+    String[] result = new String[set.size()];
+    int i = 0;
+    for (String x : set)
       result[i++] = x;
     return result;
   }
@@ -1270,6 +1340,47 @@ public class WikidataJava {
             messages.add("Item is " + propertyName + " itself: " + item);
         }
       }
+    }
+
+    if (qualifiersReturn != null)
+      qualifiersReturn.set(0, qualifiers.size() > 0 ? qualifiers : null);
+
+    if (valueSet.isEmpty())
+      return null;
+    else
+      return valueSet;
+  }
+
+  private static Set<String>
+  getPropertyStringValues
+    (Item item, String propertyName, String line, int propertyId,
+     List<String> messages,
+     List<Map<Integer, Map<Integer, int[]>>> qualifiersReturn) throws IOException
+  {
+    String qualifiersStart = ",\"qualifiers\":";
+    HashSet<String> valueSet = new HashSet<>();
+    Map<Integer, Map<Integer, int[]>> qualifiers = new HashMap<>();
+
+    // Debug: ([^\"]*) will not match a string with escaped quotes.
+    Pattern pattern = Pattern.compile
+      ("\"mainsnak\":\\{\"snaktype\":\"value\",\"property\":\"P" + propertyId +
+       "\",\"datavalue\":\\{\"value\":\"([^\"]*)\",\"type\":\"string\"},\"datatype\":\"string\"},\"type\":\"statement\"");
+    Matcher matcher = pattern.matcher(line);
+    while (matcher.find()) {
+      String value = matcher.group(1);
+      int iQualifiersStartEnd = matcher.end(0) + qualifiersStart.length();
+      boolean hasQualifiers = (iQualifiersStartEnd < line.length() &&
+        line.regionMatches(matcher.end(0), qualifiersStart, 0, qualifiersStart.length()));
+/*
+      if (hasQualifiers && qualifiersReturn != null) {
+        Map<Integer, int[]> qualifiersValues = readQualifiers
+          (line, iQualifiersStartEnd);
+        if (qualifiersValues.size() > 0)
+          qualifiers.put(value, qualifiersValues);
+      }
+*/
+
+      valueSet.add(value);
     }
 
     if (qualifiersReturn != null)
@@ -1441,6 +1552,8 @@ public class WikidataJava {
   public interface GetQualifiersMap<T> { Map<Integer, Map<Integer, int[]>> getQualifiersMap(T obj); }
   public interface SetIntArray<T> { void setIntArray(T obj, int[] values); }
   public interface SetQualifiersMap<T> { void setQualifiersMap(T obj, Map<Integer, Map<Integer, int[]>> values); }
+  public interface GetStringArray<T> { String[] getStringArray(T obj); }
+  public interface SetStringArray<T> { void setStringArray(T obj, String[] values); }
 
   public static final int QTimeZone = 12143;
   public static final int QEntity = 35120;
@@ -1458,6 +1571,7 @@ public class WikidataJava {
   public static final int PcontainsAdministrativeTerritorialEntity = 150;
   public static final int Pfollows = 155;
   public static final int PcastMember = 161;
+  public static final int PiataAirportCode = 238;
   public static final int PstatedIn = 248;
   public static final int Plocation = 276;
   public static final int PsubclassOf = 279;
