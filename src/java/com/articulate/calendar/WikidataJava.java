@@ -614,6 +614,9 @@ public class WikidataJava {
         // An exception to constraint or excluding qualifier is OK,
         //   assuming the excepted item has its own location.
       }
+      else if (entry.getKey() == PreasonForDeprecation)
+        // Reject a deprecated statement.
+        return false;
       else if (
                entry.getKey() == Parchitect ||
                entry.getKey() == PcastMember ||
@@ -1598,6 +1601,7 @@ public class WikidataJava {
   public static final int Pexcluding = 1011;
   public static final int Pproportion = 1107;
   public static final int PvalidInPeriod = 1264;
+  public static final int PreasonForDeprecation = 2241;
   public static final int PtimeZoneOffset = 2907;
   public static final int PstatementDisputedBy = 1310;
   public static final int PearliestDate = 1319;
