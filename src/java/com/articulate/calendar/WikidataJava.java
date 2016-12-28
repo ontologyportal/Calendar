@@ -102,8 +102,6 @@ public class WikidataJava {
     public int[] partOf_ = null;
     public Set<Integer> hasPart_ = null;
     public int[] saidToBeTheSameAs_ = null;
-    public int[] country_ = null;
-    public Map<Integer, Map<Integer, int[]>> countryQualifiers_ = null;
     public int[] locatedInTheAdministrativeTerritorialEntity_ = null;
     public Map<Integer, Map<Integer, int[]>> locatedInTheAdministrativeTerritorialEntityQualifiers_ = null;
     public int[] locatedInTimeZone_ = null;
@@ -112,7 +110,6 @@ public class WikidataJava {
     public Set<Integer> debugRootClasses_ = null;
     public boolean hasSubclassOfLoop_ = false;
     public boolean hasPartOfLoop_ = false;
-    public boolean hasCountryLoop_ = false;
     public boolean hasLocatedInTheAdministrativeTerritorialEntityLoop_ = false;
     private String label_;
     private boolean labelHasId_ = false;
@@ -239,12 +236,6 @@ public class WikidataJava {
       (items, (Item obj) -> obj.saidToBeTheSameAs_,
        new File(dumpDir, "saidToBeTheSameAs.tsv").getAbsolutePath());
     dumpProperty
-      (items, (Item obj) -> obj.country_,
-       new File(dumpDir, "country.tsv").getAbsolutePath());
-    dumpQualifiers
-      (items, (Item obj) -> obj.countryQualifiers_,
-       new File(dumpDir, "countryQualifiers.tsv").getAbsolutePath());
-    dumpProperty
       (items, (Item obj) -> obj.locatedInTheAdministrativeTerritorialEntity_,
        new File(dumpDir, "locatedInTheAdministrativeTerritorialEntity.tsv").getAbsolutePath());
     dumpQualifiers
@@ -294,7 +285,6 @@ public class WikidataJava {
     int nEnClassWithNonEntityRoot = 0;
     int nHasSubclassOfLoop = 0;
     int nHasPartOfLoop = 0;
-    int nHasCountryLoop = 0;
     int nHasLocatedInTheAdministrativeTerritorialEntityLoop = 0;
     int nItemsWithoutEnLabel = 0;
     int nClasses = 0;
@@ -304,7 +294,6 @@ public class WikidataJava {
     List<Integer> itemChain = new ArrayList<>();
     Map<Integer, int[]> subclassOfLoopItems = new HashMap<>();
     Map<Integer, int[]> partOfLoopItems = new HashMap<>();
-    Map<Integer, int[]> countryLoopItems = new HashMap<>();
     Map<Integer, int[]> locatedInTheAdministrativeTerritorialEntityLoopItems = new HashMap<>();
 
     Set<Integer> entitySet = new HashSet<>();
@@ -393,22 +382,6 @@ public class WikidataJava {
           ++nHasPartOfLoop;
       }
 
-      // Get country loops.
-      if (item.country_ != null) {
-        itemChain.clear();
-
-        // TODO: This computes hasCountryLoop_ which should be required.
-        addRootItems
-          (item, null, items, entry.getKey(), itemChain, countryLoopItems,
-           (Item obj) -> obj.country_, "country",
-           (Item obj) -> obj.hasCountryLoop_,
-           (Item obj, boolean x) -> { obj.hasCountryLoop_ = x; },
-           messages);
-
-        if (item.hasCountryLoop_)
-          ++nHasCountryLoop;
-      }
-
       // Get located in the administrative territorial entity loops.
       if (item.locatedInTheAdministrativeTerritorialEntity_ != null) {
         itemChain.clear();
@@ -417,7 +390,7 @@ public class WikidataJava {
         addRootItems
           (item, null, items, entry.getKey(), itemChain,
            locatedInTheAdministrativeTerritorialEntityLoopItems,
-           (Item obj) -> debugGetLocatedInTheAdministrativeTerritorialEntityAndSubProperties(obj),
+           (Item obj) -> obj.locatedInTheAdministrativeTerritorialEntity_,
            "located in the administrative territorial entity",
            (Item obj) -> obj.hasLocatedInTheAdministrativeTerritorialEntityLoop_,
            (Item obj, boolean x) -> { obj.hasLocatedInTheAdministrativeTerritorialEntityLoop_ = x; },
@@ -443,6 +416,8 @@ public class WikidataJava {
           }
 
           Item timeZone = items.get(timeZoneId);
+          if (timeZone == null)
+            throw new Error("Item " + item + " has non-existing located in time zone " + timeZoneId);
           if (!(timeZone.instanceOf_ != null &&
                 (contains(timeZone.instanceOf_, QTimeZone) ||
                  contains(timeZone.instanceOf_, QTimeZoneNamedForAUtcOffset) ||
@@ -465,12 +440,6 @@ public class WikidataJava {
         message += ", " + items.get(id);
       messages.add(message);
     }
-    for (int[] chain : countryLoopItems.values()) {
-      String message = "country loop";
-      for (int id : chain)
-        message += ", " + items.get(id);
-      messages.add(message);
-    }
     for (int[] chain : locatedInTheAdministrativeTerritorialEntityLoopItems.values()) {
       String message = "locatedInTheAdministrativeTerritorialEntity loop";
       for (int id : chain)
@@ -486,8 +455,8 @@ public class WikidataJava {
       ", nNoInstanceOf " + nNoInstanceOf + ", nEnClassWithNonEntityRoot " +
       nEnClassWithNonEntityRoot);
     messages.add("nHasSubclassOfLoop " + nHasSubclassOfLoop +
-      ", nHasPartOfLoop " + nHasPartOfLoop + ", nHasCountryLoop " +
-      nHasCountryLoop + ", nHasLocatedInTheAdministrativeTerritorialEntityLoop " +
+      ", nHasPartOfLoop " + nHasPartOfLoop +
+      ", nHasLocatedInTheAdministrativeTerritorialEntityLoop " +
       nHasLocatedInTheAdministrativeTerritorialEntityLoop);
   }
 
@@ -535,7 +504,6 @@ public class WikidataJava {
     if (item.hasLocatedInTheAdministrativeTerritorialEntityLoop_)
       return -1;
 
-    // Debug: We should also check country. But how to avoid non-location items (and their weird qualifiers)?
     if (item.locatedInTheAdministrativeTerritorialEntity_ != null) {
       for (int parentItemId : item.locatedInTheAdministrativeTerritorialEntity_) {
         if (item.locatedInTheAdministrativeTerritorialEntityQualifiers_ != null &&
@@ -601,8 +569,6 @@ public class WikidataJava {
         // Reject a location with a qualifier of location or country or
         //   located in the administrative territorial entity since we don't
         //   know if changes the location.
-        // TODO: This is normally on "country". Should we just replace the
-        //   country value with this value?
         return false;
       else if (entry.getKey() == PlocatedOnStreet ||
                entry.getKey() == PstreetNumber) {
@@ -809,30 +775,6 @@ public class WikidataJava {
       throw new Error("Can't parse as a UTC offset: \"" + utcOffset + "\"");
   }
 
-  private static int[]
-  debugGetLocatedInTheAdministrativeTerritorialEntityAndSubProperties(Item item)
-  {
-    if (item.locatedInTheAdministrativeTerritorialEntity_ == null &&
-        item.country_ == null)
-      return null;
-    else if (item.locatedInTheAdministrativeTerritorialEntity_ == null)
-      return item.country_;
-    else if (item.country_ == null)
-      return item.locatedInTheAdministrativeTerritorialEntity_;
-    else {
-      int[] result =
-        new int[item.locatedInTheAdministrativeTerritorialEntity_.length +
-                item.country_.length];
-      int iTo = 0;
-      for (int x : item.locatedInTheAdministrativeTerritorialEntity_)
-        result[iTo++] = x;
-      for (int x : item.country_)
-        result[iTo++] = x;
-
-      return result;
-    }
-  }
-
   private static void
   addRootItems
     (Item leafItem, Set<Integer> leafItemRootItems, Map<Integer, Item> items,
@@ -1024,13 +966,6 @@ public class WikidataJava {
     loadPropertyFromDump
       (new File(dumpDir, "saidToBeTheSameAs.tsv").getAbsolutePath(), items_, "said to be the same as",
        (Item obj, int[] x) -> { obj.saidToBeTheSameAs_ = x; });
-    loadPropertyFromDump
-      (new File(dumpDir, "country.tsv").getAbsolutePath(), items_, "country", 
-       (Item obj, int[] x) -> { obj.country_ = x; });
-    loadQualifiersFromDump
-      (new File(dumpDir, "countryQualifiers.tsv").getAbsolutePath(), items_,
-       "country", (Item obj) -> obj.countryQualifiers_,
-       (Item obj, Map<Integer, Map<Integer, int[]>> x) -> { obj.countryQualifiers_ = x; });
     loadPropertyFromDump
       (new File(dumpDir, "locatedInTheAdministrativeTerritorialEntity.tsv").getAbsolutePath(), items_,
        "located in the administrative territorial entity", 
@@ -1232,9 +1167,6 @@ public class WikidataJava {
       (getPropertyValues(item, "part of", line, PpartOf, messages, false, null));
     item.saidToBeTheSameAs_ = setToArray
       (getPropertyValues(item, "said to be the same as", line, PsaidToBeTheSameAs, messages, false, null));
-    item.country_ = setToArray
-      (getPropertyValues(item, "country", line, Pcountry, messages, false, qualifiers));
-    item.countryQualifiers_ = qualifiers.get(0);
     item.locatedInTheAdministrativeTerritorialEntity_ = setToArray
       (getPropertyValues(item, "located in the administrative territorial entity", line,
        PlocatedInTheAdministrativeTerritorialEntity, messages, false, qualifiers));
@@ -1337,11 +1269,8 @@ public class WikidataJava {
 
           valueSet.add(value);
         }
-        else {
-          // Unfortunately, all countries are country themself, so don't show.
-          if (!propertyName.equals("country"))
-            messages.add("Item is " + propertyName + " itself: " + item);
-        }
+        else
+          messages.add("Item is " + propertyName + " itself: " + item);
       }
     }
 
