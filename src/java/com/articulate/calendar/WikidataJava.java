@@ -463,17 +463,20 @@ public class WikidataJava {
   /**
    * Get the valid time zone for each location
    * @param items The map of Item ID with its Item.
+   * @param messages Messages for data exceptions are added to this, which is a
+   * set because the messages repeat.
    * @return A map where the key is the Item ID of a location and the value
    * is its time zone offset in seconds.
    */
   public static Map<Integer, Integer>
-  getLocationTimeZoneOffsets(Map<Integer, Item> items)
+  getLocationTimeZoneOffsets(Map<Integer, Item> items, Set<String> messages)
   {
     Map<Integer, Integer> result = new HashMap<>();
 
     for (Map.Entry<Integer, Item> entry : items.entrySet()) {
       Item item = entry.getValue();
-      int timeZoneId = getItemUtcTimeZoneWithParentLocation(item, items);
+      int timeZoneId = getItemUtcTimeZoneWithParentLocation
+        (item, items, messages);
       if (timeZoneId < 0)
         continue;
 
@@ -492,12 +495,15 @@ public class WikidataJava {
    * zone.
    * @param item The Item to check.
    * @param items The Items map for looking up the time zone with UTC offset.
+   * @param messages Messages for data exceptions are added to this, which is a
+   * set because the messages repeat.
    * @return The time zone's Item ID, or -1 if not found.
    */
   private static int
-  getItemUtcTimeZoneWithParentLocation(Item item, Map<Integer, Item> items)
+  getItemUtcTimeZoneWithParentLocation
+    (Item item, Map<Integer, Item> items, Set<String> messages)
   {
-    int timeZoneId = getItemUtcTimeZone(item, items);
+    int timeZoneId = getItemUtcTimeZone(item, items, messages);
     if (timeZoneId >= 0)
       return timeZoneId;
 
@@ -517,11 +523,12 @@ public class WikidataJava {
         if (!items.containsKey(parentItemId))
           continue;
         int parentTimeZoneId =
-          getItemUtcTimeZoneWithParentLocation(items.get(parentItemId), items);
+          getItemUtcTimeZoneWithParentLocation
+            (items.get(parentItemId), items, messages);
         if (parentTimeZoneId < 0)
           continue;
         if (timeZoneId >= 0 && parentTimeZoneId != timeZoneId) {
-          System.out.println("Item " + item + " time zone " + items.get(timeZoneId) +
+          messages.add("Item " + item + " time zone " + items.get(timeZoneId) +
             " has a parent " + items.get(parentItemId) +
             " with a different time zone " + items.get(parentTimeZoneId));
           // Different time zones, so fail.
@@ -626,10 +633,12 @@ public class WikidataJava {
    * check "parent" items that this may be located in.
    * @param item The Item to check.
    * @param items The Items map for looking up the time zone with UTC offset.
+   * @param messages Messages for data exceptions are added to this, which is a
+   * set because the messages repeat.
    * @return The time zone's Item ID, or -1 if not found.
    */
   private static int
-  getItemUtcTimeZone(Item item, Map<Integer, Item> items)
+  getItemUtcTimeZone(Item item, Map<Integer, Item> items, Set<String> messages)
   {
     if (item.locatedInTimeZone_ == null)
       return -1;
@@ -644,7 +653,7 @@ public class WikidataJava {
              : item.locatedInTimeZoneQualifiers_.get(timeZone).entrySet()) {
           if (entry.getKey() == PvalidInPeriod) {
             if (entry.getValue().length != 1) {
-              System.out.println
+              messages.add
                 ("Item " + item + " has multiple time zone valid in period values");
               isValid = false;
               break;
@@ -659,7 +668,7 @@ public class WikidataJava {
               break;
             }
             else {
-              System.out.println
+              messages.add
                 ("Item " + item + " has an unrecognized time zone valid in period value " + entry.getValue()[0]);
               // TODO: We should explicitly recognize unknown values to reject.
               isValid = false;
@@ -693,16 +702,17 @@ public class WikidataJava {
       }
 
       // The timeZone is valid.
-      int timeZoneWithUtcOffset = getTimeZoneWithUtcOffset(timeZone, items);
+      int timeZoneWithUtcOffset = getTimeZoneWithUtcOffset
+        (timeZone, items, messages);
       if (timeZoneWithUtcOffset < 0) {
-        System.out.println("Item " + item + " has no time zone with UTC offset");
+        messages.add("Item " + item + " has no time zone with UTC offset");
         continue;
       }
 
       if (result >= 0 && result != timeZoneWithUtcOffset) {
         if (item.Id != 96 && // Debug: Don't mention Mexico.
             item.Id != 223)  // Debug: Don't mention Greenland.
-          System.out.println("Item " + item + " has multiple valid time zones " +
+          messages.add("Item " + item + " has multiple valid time zones " +
             result + " and " + timeZoneWithUtcOffset);
         // Ignore multiple valid results.
         return -1;
@@ -720,10 +730,13 @@ public class WikidataJava {
    * check "parent" items that this may be located in.
    * @param timeZoneId The ID of the time zone Item to check.
    * @param items The Items map for looking up the time zone with UTC offset.
+   * @param messages Messages for data exceptions are added to this, which is a
+   * set because the messages repeat.
    * @return The time zone's Item ID, or -1 if not found.
    */
   private static int
-  getTimeZoneWithUtcOffset(int timeZoneId, Map<Integer, Item> items)
+  getTimeZoneWithUtcOffset
+    (int timeZoneId, Map<Integer, Item> items, Set<String> messages)
   {
     Item timeZone = items.get(timeZoneId);
     if (timeZone.instanceOf_ != null &&
@@ -748,13 +761,13 @@ public class WikidataJava {
           contains(parentTimeZone.instanceOf_, QTimeZoneNamedForAUtcOffset))
         return parentTimeZoneId;
       else {
-        System.out.println("The parent time zone of " + timeZone +
+        messages.add("The parent time zone of " + timeZone +
           " is not a time zone with UTC offset");
         return -1;
       }
     }
     else {
-      System.out.println("Time zone " + timeZone + " does not have a parent time zone");
+      messages.add("Time zone " + timeZone + " does not have a parent time zone");
       return -1;
     }
   }
