@@ -1,3 +1,6 @@
 [submodule "submodules/sigmakee"]
 	path = submodules/sigmakee
 	url = https://github.com/ontologyportal/sigmakee
+[submodule "submodules/nuvl"]
+	path = submodules/nuvl
+	url = https://github.com/jefft0/nuvl
