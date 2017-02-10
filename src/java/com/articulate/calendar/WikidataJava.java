@@ -421,7 +421,8 @@ public class WikidataJava {
           if (!(timeZone.instanceOf_ != null &&
                 (contains(timeZone.instanceOf_, QTimeZone) ||
                  contains(timeZone.instanceOf_, QTimeZoneNamedForAUtcOffset) ||
-                 contains(timeZone.instanceOf_, QSeasonalTimeZone))))
+                 contains(timeZone.instanceOf_, QSeasonalTimeZone) ||
+                 contains(timeZone.instanceOf_, QIanaTimeZone))))
             messages.add("*** Item " + item + " time zone value is not an instance of a type of TimeZone: " + timeZone);
         }
       }
@@ -598,6 +599,7 @@ public class WikidataJava {
                entry.getKey() == PreferenceUrl ||
                entry.getKey() == Preplaces ||
                entry.getKey() == Pretrieved ||
+               entry.getKey() == PhasCause ||
                entry.getKey() == PsignificantEvent ||
                entry.getKey() == PstatedIn ||
                entry.getKey() == PstatementDisputedBy ||
@@ -690,6 +692,11 @@ public class WikidataJava {
           }
           else if (entry.getKey() == PsubjectOf) {
             // A subject of qualifier is OK, assuming it is only expository.
+          }
+          else if (entry.getKey() == PexceptionToConstraint ||
+                   entry.getKey() == Pexcluding) {
+            // An exception to constraint or excluding qualifier is OK,
+            //   assuming the excepted item has its own time zone.
           }
           else
             throw new Error
@@ -1539,6 +1546,7 @@ public class WikidataJava {
   public static final int Pas = 794;
   public static final int PsubjectOf = 805;
   public static final int Pretrieved = 813;
+  public static final int PhasCause = 828;
   public static final int PreferenceUrl = 854;
   public static final int Pexcluding = 1011;
   public static final int Pproportion = 1107;
