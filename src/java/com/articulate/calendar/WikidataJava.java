@@ -401,34 +401,6 @@ public class WikidataJava {
       }
     }
 
-    System.out.print("Checking time zones ...");
-    for (Map.Entry<Integer, Item> entry : items.entrySet()) {
-      Item item = entry.getValue();
-      if (item.locatedInTimeZone_ != null) {
-        for (int timeZoneId : item.locatedInTimeZone_) {
-          if (item.locatedInTimeZoneQualifiers_ != null &&
-              item.locatedInTimeZoneQualifiers_.containsKey(timeZoneId) &&
-              item.locatedInTimeZoneQualifiers_.get(timeZoneId).containsKey(PappliesToPart)) {
-            for (int appliesToPartValue : item.locatedInTimeZoneQualifiers_.get(timeZoneId).get(PappliesToPart)) {
-              if (items.get(appliesToPartValue).locatedInTimeZone_ == null)
-                messages.add("Item " + item + " time zone applies to part without time zone: " + items.get(appliesToPartValue));
-            }
-          }
-
-          Item timeZone = items.get(timeZoneId);
-          if (timeZone == null)
-            throw new Error("Item " + item + " has non-existing located in time zone " + timeZoneId);
-          if (!(timeZone.instanceOf_ != null &&
-                (contains(timeZone.instanceOf_, QTimeZone) ||
-                 contains(timeZone.instanceOf_, QTimeZoneNamedForAUtcOffset) ||
-                 contains(timeZone.instanceOf_, QSeasonalTimeZone) ||
-                 contains(timeZone.instanceOf_, QIanaTimeZone))))
-            messages.add("*** Item " + item + " time zone value is not an instance of a type of TimeZone: " + timeZone);
-        }
-      }
-    }
-    System.out.println(" done.");
-
     for (int[] chain : subclassOfLoopItems.values()) {
       String message = "subclassOf loop";
       for (int id : chain)
@@ -462,38 +434,34 @@ public class WikidataJava {
   }
 
   /**
-   * Get the valid time zone for each location
+   * Get the valid IANA time zone for each location
    * @param items The map of Item ID with its Item.
    * @param messages Messages for data exceptions are added to this, which is a
    * set because the messages repeat.
    * @return A map where the key is the Item ID of a location and the value
-   * is its time zone offset in seconds.
+   * is the ID of its IANA time zone.
    */
   public static Map<Integer, Integer>
-  getLocationTimeZoneOffsets(Map<Integer, Item> items, Set<String> messages)
+  getLocationIanaTimeZones(Map<Integer, Item> items, Set<String> messages)
   {
     Map<Integer, Integer> result = new HashMap<>();
 
     for (Map.Entry<Integer, Item> entry : items.entrySet()) {
       Item item = entry.getValue();
-      int timeZoneId = getItemUtcTimeZoneWithParentLocation
+      int timeZoneId = getItemIanaTimeZoneWithParentLocation
         (item, items, messages);
       if (timeZoneId < 0)
         continue;
 
-      result.put
-        (entry.getKey(), getUtcOffsetSeconds(items.get(timeZoneId).getEnLabel()));
+      result.put(entry.getKey(), timeZoneId);
     }
 
     return result;
   }
 
   /**
-   * Get the time zone ID of the item or one of its parent locations where the
-   * time zone is the unique value which is not for daylight saving. This
-   * promotes a time zone like "Central European Time" to the time zone with
-   * UTC offset. This fails if multiple parent locations have a different time
-   * zone.
+   * Get the IANA time zone ID of the item or one of its parent locations. This
+   * fails if multiple parent locations have a different time zone.
    * @param item The Item to check.
    * @param items The Items map for looking up the time zone with UTC offset.
    * @param messages Messages for data exceptions are added to this, which is a
@@ -501,10 +469,10 @@ public class WikidataJava {
    * @return The time zone's Item ID, or -1 if not found.
    */
   private static int
-  getItemUtcTimeZoneWithParentLocation
+  getItemIanaTimeZoneWithParentLocation
     (Item item, Map<Integer, Item> items, Set<String> messages)
   {
-    int timeZoneId = getItemUtcTimeZone(item, items, messages);
+    int timeZoneId = getItemIanaTimeZone(item, items, messages);
     if (timeZoneId >= 0)
       return timeZoneId;
 
@@ -523,15 +491,14 @@ public class WikidataJava {
         // Recurse.
         if (!items.containsKey(parentItemId))
           continue;
-        int parentTimeZoneId =
-          getItemUtcTimeZoneWithParentLocation
+        int parentTimeZoneId = getItemIanaTimeZoneWithParentLocation
             (items.get(parentItemId), items, messages);
         if (parentTimeZoneId < 0)
           continue;
         if (timeZoneId >= 0 && parentTimeZoneId != timeZoneId) {
-          messages.add("Item " + item + " time zone " + items.get(timeZoneId) +
-            " has a parent " + items.get(parentItemId) +
-            " with a different time zone " + items.get(parentTimeZoneId));
+          messages.add("Item " + item + " has a parent location with IANA time zone " +
+            items.get(timeZoneId) + " but has another parent " + items.get(parentItemId) +
+            " with a different IANA time zone " + items.get(parentTimeZoneId));
           // Different time zones, so fail.
           return -1;
         }
@@ -629,10 +596,8 @@ public class WikidataJava {
   }
 
   /**
-   * Get the item's time zone ID where the time zone is the unique value
-   * which is not for daylight saving. Time promotes a time zone like
-   * "Central European Time" to the time zone with UTC offset. This does not
-   * check "parent" items that this may be located in.
+   * Get the item's unique IANA time zone ID. This does not check "parent" items
+   * that this may be located in.
    * @param item The Item to check.
    * @param items The Items map for looking up the time zone with UTC offset.
    * @param messages Messages for data exceptions are added to this, which is a
@@ -640,42 +605,32 @@ public class WikidataJava {
    * @return The time zone's Item ID, or -1 if not found.
    */
   private static int
-  getItemUtcTimeZone(Item item, Map<Integer, Item> items, Set<String> messages)
+  getItemIanaTimeZone(Item item, Map<Integer, Item> items, Set<String> messages)
   {
     if (item.locatedInTimeZone_ == null)
       return -1;
 
     int result = -1;
-    for (int timeZone : item.locatedInTimeZone_) {
-      // Try to disqulaify based on qualifiers.
+    for (int timeZoneId : item.locatedInTimeZone_) {
+      Item timeZone = items.get(timeZoneId);
+      if (timeZone == null)
+        throw new Error("Item " + item + " has non-existing located in time zone " + timeZoneId);
+      if (!(timeZone.instanceOf_ != null &&
+            contains(timeZone.instanceOf_, QIanaTimeZone)))
+        // Not an IANA time zone.
+        continue;
+
+      // Try to disqualify based on qualifiers.
       if (item.locatedInTimeZoneQualifiers_ != null &&
-          item.locatedInTimeZoneQualifiers_.containsKey(timeZone)) {
+          item.locatedInTimeZoneQualifiers_.containsKey(timeZoneId)) {
         boolean isValid = true;
         for (Map.Entry<Integer, int[]> entry 
-             : item.locatedInTimeZoneQualifiers_.get(timeZone).entrySet()) {
+             : item.locatedInTimeZoneQualifiers_.get(timeZoneId).entrySet()) {
           if (entry.getKey() == PvalidInPeriod) {
-            if (entry.getValue().length != 1) {
-              messages.add
-                ("Item " + item + " has multiple time zone valid in period values");
-              isValid = false;
-              break;
-            }
-
-            if (entry.getValue()[0] == QStandardTime) {
-              // Standard time is OK.
-            }
-            else if (entry.getValue()[0] == QDaylightSavingTime) {
-              // Reject time zones for daylight saving time.
-              isValid = false;
-              break;
-            }
-            else {
-              messages.add
-                ("Item " + item + " has an unrecognized time zone valid in period value " + entry.getValue()[0]);
-              // TODO: We should explicitly recognize unknown values to reject.
-              isValid = false;
-              break;
-            }
+            // Reject a time zone with valid in period since it should not be
+            // needed for IANA time zones.
+            isValid = false;
+            break;
           }
           else if (entry.getKey() == PstartTime) {
             // A start time is OK. We reject an end time below.
@@ -708,91 +663,16 @@ public class WikidataJava {
           continue;
       }
 
-      // The timeZone is valid.
-      int timeZoneWithUtcOffset = getTimeZoneWithUtcOffset
-        (timeZone, items, messages);
-      if (timeZoneWithUtcOffset < 0) {
-        messages.add("Item " + item + " has no time zone with UTC offset");
-        continue;
-      }
-
-      if (result >= 0 && result != timeZoneWithUtcOffset) {
-        if (item.Id != 96 && // Debug: Don't mention Mexico.
-            item.Id != 223)  // Debug: Don't mention Greenland.
-          messages.add("Item " + item + " has multiple valid time zones " +
-            result + " and " + timeZoneWithUtcOffset);
+      if (result >= 0 && result != timeZoneId) {
+        messages.add("Item " + item + " has multiple valid IANA time zones " +
+          result + " and " + timeZoneId);
         // Ignore multiple valid results.
         return -1;
       }
-      result = timeZoneWithUtcOffset;
+      result = timeZoneId;
     }
 
     return result;
-  }
-
-  /**
-   * Get the item's time zone ID where the time zone is the unique value
-   * which is not for daylight saving. Time promotes a time zone like
-   * "Central European Time" to the time zone with UTC offset. This does not
-   * check "parent" items that this may be located in.
-   * @param timeZoneId The ID of the time zone Item to check.
-   * @param items The Items map for looking up the time zone with UTC offset.
-   * @param messages Messages for data exceptions are added to this, which is a
-   * set because the messages repeat.
-   * @return The time zone's Item ID, or -1 if not found.
-   */
-  private static int
-  getTimeZoneWithUtcOffset
-    (int timeZoneId, Map<Integer, Item> items, Set<String> messages)
-  {
-    Item timeZone = items.get(timeZoneId);
-    if (timeZone.instanceOf_ != null &&
-        contains(timeZone.instanceOf_, QTimeZoneNamedForAUtcOffset))
-      return timeZoneId;
-
-    // For now, only check one level of indirection.
-    int parentTimeZoneId;
-    if (timeZone.locatedInTimeZone_ != null &&
-        timeZone.locatedInTimeZone_.length == 1 &&
-        timeZone.locatedInTimeZoneQualifiers_ == null)
-      parentTimeZoneId = timeZone.locatedInTimeZone_[0];
-    else if (timeZone.saidToBeTheSameAs_ != null &&
-             timeZone.saidToBeTheSameAs_.length == 1)
-      parentTimeZoneId = timeZone.saidToBeTheSameAs_[0];
-    else
-      parentTimeZoneId = -1;
-
-    if (parentTimeZoneId >= 0) {
-      Item parentTimeZone = items.get(parentTimeZoneId);
-      if (parentTimeZone.instanceOf_ != null &&
-          contains(parentTimeZone.instanceOf_, QTimeZoneNamedForAUtcOffset))
-        return parentTimeZoneId;
-      else {
-        messages.add("The parent time zone of " + timeZone +
-          " is not a time zone with UTC offset");
-        return -1;
-      }
-    }
-    else {
-      messages.add("Time zone " + timeZone + " does not have a parent time zone");
-      return -1;
-    }
-  }
-
-  private static int
-  getUtcOffsetSeconds(String utcOffset)
-  {
-    if (utcOffset.equals("UTC±00:00"))
-      return 0;
-
-    Matcher matcher = utcPattern_.matcher(utcOffset);
-    if (matcher.find()) {
-      int seconds = 3600 * Integer.parseInt(matcher.group(2)) +
-                      60 * Integer.parseInt(matcher.group(3));
-      return matcher.group(1).equals("−") ? -seconds : seconds;
-    }
-    else
-      throw new Error("Can't parse as a UTC offset: \"" + utcOffset + "\"");
   }
 
   private static void
@@ -1507,14 +1387,9 @@ public class WikidataJava {
   public interface GetStringArray<T> { String[] getStringArray(T obj); }
   public interface SetStringArray<T> { void setStringArray(T obj, String[] values); }
 
-  public static final int QTimeZone = 12143;
   public static final int QEntity = 35120;
-  public static final int QDaylightSavingTime = 36669;
   public static final int QNull = 543287;
-  public static final int QStandardTime = 1777301;
-  public static final int QTimeZoneNamedForAUtcOffset = 17272482;
   public static final int QIanaTimeZone = 17272692;
-  public static final int QSeasonalTimeZone = 17280916;
   public static final int Pcountry = 17;
   public static final int PinstanceOf = 31;
   public static final int Parchitect = 84;
@@ -1552,7 +1427,6 @@ public class WikidataJava {
   public static final int Pproportion = 1107;
   public static final int PvalidInPeriod = 1264;
   public static final int PreasonForDeprecation = 2241;
-  public static final int PtimeZoneOffset = 2907;
   public static final int PstatementDisputedBy = 1310;
   public static final int PearliestDate = 1319;
   public static final int PlatestDate = 1326;
