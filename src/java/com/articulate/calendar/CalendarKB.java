@@ -10,11 +10,15 @@ on, or uses this code.
 
 package com.articulate.calendar;
 
-import com.articulate.calendar.argue.Argument;
 import com.articulate.sigma.Formula;
 import com.articulate.sigma.KB;
+import com.google.gson.Gson;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.time.LocalDate;
-import java.time.Month;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,8 +39,55 @@ public class CalendarKB {
    * Create a new CalendarKB to use the given Sigma KB.
    * @param kb The Sigma KB.
    */
-  public CalendarKB(KB kb) {
+  public CalendarKB(KB kb) throws FileNotFoundException, IOException
+  {
     this.kb = kb;
+
+    Set<String> ianaTimeZones = new HashSet<>();
+    try (FileReader file = new FileReader(new File(kb.kbDir, "locationIanaTimeZone.kif"));
+         BufferedReader reader = new BufferedReader(file)) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        Matcher matcher = locationIanaTimeZonePattern_.matcher(line);
+        if (!matcher.find())
+          throw new Error("Can't match locationIanaTimeZone pattern: " + line);
+
+        locationIanaTimeZone_.put(matcher.group(1), matcher.group(2));
+        ianaTimeZones.add(matcher.group(2));
+      }
+    }
+
+    try (FileReader file = new FileReader(new File(kb.kbDir, "itemTermFormatEnglishLanguage.kif"));
+         BufferedReader reader = new BufferedReader(file)) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        Matcher matcher = itemTermFormatEnglishLanguagePattern_.matcher(line);
+        if (!matcher.find())
+          throw new Error("Can't match itemTermFormatEnglishLanguage pattern: " + line);
+
+        if (!(locationIanaTimeZone_.containsKey(matcher.group(1)) ||
+              ianaTimeZones.contains(matcher.group(1))))
+          // For now, only use memory to store labels needed for locations.
+          continue;
+        String label = gson_.fromJson(matcher.group(2), String.class);
+        itemTermFormatEnglishLanguage_.put(matcher.group(1), label);
+      }
+    }
+
+    try (FileReader file = new FileReader(new File(kb.kbDir, "iataAbbreviation.kif"));
+         BufferedReader reader = new BufferedReader(file)) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        Matcher matcher = iataAbbreviationPattern_.matcher(line);
+        if (!matcher.find())
+          throw new Error("Can't match iataAbbreviation pattern: " + line);
+
+        String abbreviation = gson_.fromJson(matcher.group(1), String.class);
+        iataAbbreviation_.put(matcher.group(2), abbreviation);
+      }
+    }
+
+    System.out.println(" done.");
   }
 
   /**
@@ -175,8 +226,18 @@ public class CalendarKB {
    * The Sigma KB given to the constructor.
    */
   public final KB kb;
-
+  public final Map<String, String> locationIanaTimeZone_ = new HashMap<>();
+  public final Map<String, String> itemTermFormatEnglishLanguage_ = new HashMap<>();
+  public final Map<String, String> iataAbbreviation_ = new HashMap<>();
+  
   private TimeZone overlapsDateTimeZone_ = null;
   private final Map<LocalDate, Set<PhysicalTimeInterval>> overlapsDate_ = new HashMap<>();
   private static final Set<PhysicalTimeInterval> emptyPhysicalTimeIntervalSet_ = new HashSet<>();
+  private static final Gson gson_ = new Gson();
+  private static final Pattern locationIanaTimeZonePattern_ = Pattern.compile
+    ("^\\(locationIanaTimeZone (\\w+) (\\w+)\\)$");
+  private static final Pattern itemTermFormatEnglishLanguagePattern_ = Pattern.compile
+    ("^\\(termFormat EnglishLanguage (\\w+) (\".*\")\\)$");
+  private static final Pattern iataAbbreviationPattern_ = Pattern.compile
+    ("\\(abbreviation (\".*\") (\\w+)\\)");
 }
