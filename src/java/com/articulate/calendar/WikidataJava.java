@@ -558,6 +558,9 @@ public class WikidataJava {
       else if (entry.getKey() == PreasonForDeprecation)
         // Reject a deprecated statement.
         return false;
+      else if (entry.getKey() == PsourcingCircumstances)
+        // Reject a statement with suspect circumstances.
+        return false;
       else if (
                entry.getKey() == Parchitect ||
                entry.getKey() == PcastMember ||
@@ -1431,6 +1434,7 @@ public class WikidataJava {
   public static final int PearliestDate = 1319;
   public static final int PlatestDate = 1326;
   public static final int Preplaces = 1365;
+  public static final int PsourcingCircumstances = 1480;
   public static final int PexceptionToConstraint = 2303;
   public static final int PdiscontinuedDate = 2669;
   private static final Gson gson_ = new Gson();
