@@ -132,7 +132,7 @@
             <configuration>
               <sources>
                 <source>submodules/sigmakee/src/java</source>
-                <source>submodules/nuvl/src/scala</source>
+                <source>submodules/nuvl/src/main/scala</source>
               </sources>
             </configuration>
           </execution>
