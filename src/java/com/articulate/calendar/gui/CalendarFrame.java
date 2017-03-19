@@ -13,7 +13,6 @@ package com.articulate.calendar.gui;
 import com.articulate.calendar.CalendarKB;
 import com.articulate.calendar.CalendarKB.PhysicalTimeInterval;
 import com.articulate.calendar.CalendarPreferences;
-import com.articulate.calendar.argue.ArgumentSet;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Font;
@@ -49,13 +48,11 @@ public class CalendarFrame extends javax.swing.JFrame {
    * Creates a CalendarFrame.
    */
   public CalendarFrame
-    (CalendarPreferences preferences, CalendarKB calendarKB,
-     ArgumentSet argumentSet)
+    (CalendarPreferences preferences, CalendarKB calendarKB)
   {
     super("Calendar");
     preferences_ = preferences;
     calendarKB_ = calendarKB;
-    argumentSet_ = argumentSet;
 
     initComponents();
 
@@ -196,7 +193,7 @@ public class CalendarFrame extends javax.swing.JFrame {
           DayPanel.Entry[] panelEntries = new DayPanel.Entry[timeIntervals.size()];
           int entryCount = 0;
           for (PhysicalTimeInterval timeInterval : timeIntervals) {
-            // TODO: Check that process is a process in the argumentSet_.
+            // TODO: Check that process is a process in the argument set.
             String process = timeInterval.physical;
 
             // TODO: Check for empty list.
@@ -573,8 +570,7 @@ public class CalendarFrame extends javax.swing.JFrame {
       public void run()
       {
         new CalendarFrame
-          (new CalendarPreferences(), null,
-           new ArgumentSet(new HashSet())).setVisible(true);
+          (new CalendarPreferences(), null).setVisible(true);
       }
     });
   }
@@ -598,7 +594,6 @@ public class CalendarFrame extends javax.swing.JFrame {
   // End of variables declaration//GEN-END:variables
   private final CalendarPreferences preferences_;
   private final CalendarKB calendarKB_;
-  private final ArgumentSet argumentSet_;
   private final DefaultListModel<String> eventsListModel_ = new DefaultListModel<>();
   private final ArrayList<ArrayList<DayPanel>> daysPanelGrid_ = new ArrayList();
   private final ArrayList<JLabel> daysPanelHeaders_ = new ArrayList();

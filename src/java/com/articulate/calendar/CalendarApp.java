@@ -11,8 +11,6 @@ on, or uses this code.
 package com.articulate.calendar;
 
 import com.articulate.calendar.WikidataJava.Item;
-import com.articulate.calendar.argue.Argument;
-import com.articulate.calendar.argue.ArgumentSet;
 import com.articulate.calendar.gui.CalendarFrame;
 import com.articulate.sigma.Formula;
 import com.articulate.sigma.KBmanager;
@@ -25,7 +23,6 @@ import java.util.HashSet;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
@@ -48,7 +45,7 @@ public class CalendarApp {
     ArrayList<String> messages = new ArrayList<>();
     boolean doDump = false;
     if (doDump) {
-      WikidataJava.dumpFromJson("/home/jeff/temp/wikidata-20170213-all.json.gz", dumpDir, messages);
+      WikidataJava.dumpFromJson("/home/jeff/temp/wikidata-20170313-all.json.gz", dumpDir, messages);
       for (String message : messages)
         System.out.println(message);
       if (true) return;
@@ -93,7 +90,7 @@ public class CalendarApp {
 
     if (true) return;
 */
-    
+
     KBmanager.getMgr().initializeOnce();
     WordNet.initOnce();
     CalendarPreferences preferences = new CalendarPreferences();
@@ -130,27 +127,12 @@ public class CalendarApp {
       }
     }
 
-    ArgumentSet argumentSet = makeArgumentSet(calendarKB);
-
     try {
-      CalendarFrame frame = new CalendarFrame
-        (preferences, calendarKB, argumentSet);
+      CalendarFrame frame = new CalendarFrame(preferences, calendarKB);
       frame.pack();
       frame.setVisible(true);
     } catch (Exception ex) {
       ex.printStackTrace();
     }
-  }
-
-  private static ArgumentSet makeArgumentSet(CalendarKB calendarKB)
-  {
-    HashSet<Argument> arguments = new HashSet<>();
-    // For debugging, just fill the argumentSet with known Process instances.
-    for (String process : calendarKB.kb.kbCache.getInstancesForType("Process"))
-      // For debugging, we don't need the rules.
-      arguments.add
-        (new Argument(new Formula("(instance " + process + " Process)")));
-
-    return new ArgumentSet(arguments);
   }
 }
