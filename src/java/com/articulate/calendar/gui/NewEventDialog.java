@@ -9,6 +9,7 @@ on, or uses this code.
  */
 package com.articulate.calendar.gui;
 
+import com.articulate.calendar.CalendarKB;
 import com.articulate.calendar.CalendarPreferences;
 import java.util.Calendar;
 import java.util.Locale;
@@ -23,9 +24,11 @@ public class NewEventDialog extends JDialog {
   /**
    * Creates new form NewEventDialog
    */
-  public NewEventDialog(java.awt.Frame parent, CalendarPreferences preferences)
+  public NewEventDialog
+    (java.awt.Frame parent, CalendarKB calendarKB, CalendarPreferences preferences)
   {
     super(parent, true);
+    calendarKB_ = calendarKB;
     preferences_ = preferences;
 
     initComponents();
@@ -97,7 +100,7 @@ public class NewEventDialog extends JDialog {
       public void run()
       {
         NewEventDialog dialog = new NewEventDialog
-          (new javax.swing.JFrame(), null);
+          (new javax.swing.JFrame(), null, null);
         dialog.addWindowListener(new java.awt.event.WindowAdapter() {
           @Override
           public void windowClosing(java.awt.event.WindowEvent e)
@@ -112,5 +115,6 @@ public class NewEventDialog extends JDialog {
 
   // Variables declaration - do not modify//GEN-BEGIN:variables
   // End of variables declaration//GEN-END:variables
+  private final CalendarKB calendarKB_;
   private final CalendarPreferences preferences_;
 }
