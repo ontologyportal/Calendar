@@ -285,6 +285,7 @@ public class CalendarFrame extends javax.swing.JFrame {
     incrementButton_ = new javax.swing.JButton();
     daysPanel_ = new javax.swing.JPanel();
     daysPanelLabel_ = new javax.swing.JLabel();
+    jButton1 = new javax.swing.JButton();
     eventsPanel_ = new javax.swing.JPanel();
     eventsScrollPane_ = new javax.swing.JScrollPane();
     eventsList_ = new javax.swing.JList<>();
@@ -383,6 +384,15 @@ public class CalendarFrame extends javax.swing.JFrame {
     daysPanelLabel_.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
     daysPanelLabel_.setText("September 2016");
 
+    jButton1.setText("New Event");
+    jButton1.addActionListener(new java.awt.event.ActionListener()
+    {
+      public void actionPerformed(java.awt.event.ActionEvent evt)
+      {
+        jButton1ActionPerformed(evt);
+      }
+    });
+
     javax.swing.GroupLayout calendarPanel_Layout = new javax.swing.GroupLayout(calendarPanel_);
     calendarPanel_.setLayout(calendarPanel_Layout);
     calendarPanel_Layout.setHorizontalGroup(
@@ -396,7 +406,9 @@ public class CalendarFrame extends javax.swing.JFrame {
         .addComponent(incrementButton_)
         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
         .addComponent(daysPanelLabel_, javax.swing.GroupLayout.PREFERRED_SIZE, 151, javax.swing.GroupLayout.PREFERRED_SIZE)
-        .addContainerGap(373, Short.MAX_VALUE))
+        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+        .addComponent(jButton1)
+        .addContainerGap(235, Short.MAX_VALUE))
       .addComponent(daysPanel_, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
     );
     calendarPanel_Layout.setVerticalGroup(
@@ -407,7 +419,8 @@ public class CalendarFrame extends javax.swing.JFrame {
           .addComponent(decrementButton_)
           .addComponent(todayButton_)
           .addComponent(incrementButton_)
-          .addComponent(daysPanelLabel_, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE))
+          .addComponent(daysPanelLabel_, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
+          .addComponent(jButton1))
         .addGap(27, 27, 27)
         .addComponent(daysPanel_, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
     );
@@ -522,6 +535,11 @@ public class CalendarFrame extends javax.swing.JFrame {
       calendarAndTasksHorizontalSplitPane_.getSize().width;
   }//GEN-LAST:event_calendarAndTasksHorizontalSplitPane_ComponentResized
 
+  private void jButton1ActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_jButton1ActionPerformed
+  {//GEN-HEADEREND:event_jButton1ActionPerformed
+    new NewEventDialog(this, calendarKB_, preferences_).setVisible(true);
+  }//GEN-LAST:event_jButton1ActionPerformed
+
   /**
    * @param args the command line arguments
    */
@@ -573,6 +591,7 @@ public class CalendarFrame extends javax.swing.JFrame {
   private javax.swing.JPanel eventsPanel_;
   private javax.swing.JScrollPane eventsScrollPane_;
   private javax.swing.JButton incrementButton_;
+  private javax.swing.JButton jButton1;
   private javax.swing.JPanel tasksPanel_;
   private javax.swing.JButton todayButton_;
   private javax.swing.JSplitPane topHorizontalSplitPane_;
