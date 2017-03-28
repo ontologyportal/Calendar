@@ -10,7 +10,6 @@ on, or uses this code.
 
 package com.articulate.calendar;
 
-import com.articulate.sigma.Formula;
 import com.articulate.sigma.KB;
 import com.google.gson.Gson;
 import java.io.BufferedReader;
@@ -27,21 +26,25 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.nuvl.argue.aba_plus.Sentence;
 
 /**
- * A CalendarKB holds a Sigma KB plus other cached values needed by the Calendar
- * application. (When the Sigma KB can efficiently answer queries involving
- * arithmetic, perhaps this help class won't be necessary.)
+ * A CalendarKB holds a set of aba_plus Sentences plus other cached values
+ * needed by the Calendar application.
  * @author Jeff Thompson, jeff@thefirst.org
  */
 public class CalendarKB {
   /**
-   * Create a new CalendarKB to use the given Sigma KB.
+   * Create a new CalendarKB by extracting sentences from the given Sigma KB.
    * @param kb The Sigma KB.
    */
   public CalendarKB(KB kb) throws FileNotFoundException, IOException
   {
     this.kb = kb;
+
+    // Copy formulas to ABA_Plus sentences.
+    for (String formula : kb.formulaMap.keySet())
+      sentences_.add(new Sentence(formula, false));
 
     Set<String> ianaTimeZones = new HashSet<>();
     try (FileReader file = new FileReader(new File(kb.kbDir, "locationIanaTimeZone.kif"));
@@ -131,31 +134,23 @@ public class CalendarKB {
   overlapsDate(LocalDate date, TimeZone timeZone)
   {
     if (timeZone != overlapsDateTimeZone_) {
-      // TODO: Check if kb has changed.
+      // TODO: Check if sentences_ has changed.
       // Set up overlapsDate_.
       Calendar calendar = Calendar.getInstance(timeZone);
-      Pattern whenPattern = Pattern.compile("^\\(\\s*WhenFn\\s+(\\w+)\\s*\\)$");
-      Pattern timeIntervalPattern = Pattern.compile
-        ("^\\(\\s*TimeIntervalFn\\s+\\(\\s*SecondsSinceUnixEpochFn\\s+(\\d+)\\s*\\)" +
-                               "\\s+\\(\\s*SecondsSinceUnixEpochFn\\s+(\\d+)\\s*\\)\\s*\\)$");
+      Pattern pattern = Pattern.compile("^\\(equal \\(WhenFn (\\w+)\\) " +
+        "\\(TimeIntervalFn \\(SecondsSinceUnixEpochFn (\\d+)\\) \\(SecondsSinceUnixEpochFn (\\d+)\\)\\)\\)$");
 
       overlapsDate_.clear();
       overlapsDateTimeZone_ = timeZone;
-      for (Formula formula : kb.ask("arg", 0, "equal")) {
-        if (formula.listLength() < 3)
-          continue;
-        Matcher matcher = whenPattern.matcher(formula.getArgument(1));
+      for (Sentence sentence : sentences_) {
+        Matcher matcher = pattern.matcher(sentence.symbol());
         if (!matcher.find())
           continue;
         String physical = matcher.group(1);
 
-        matcher = timeIntervalPattern.matcher(formula.getArgument(2));
-        if (!matcher.find())
-          continue;
-
         // TODO: Check for NumberFormatException.
-        long beginTimeUtcMillis = (long)(Double.parseDouble(matcher.group(1)) * 1000);
-        long endTimeUtcMillis = (long)(Double.parseDouble(matcher.group(2)) * 1000);
+        long beginTimeUtcMillis = (long)(Double.parseDouble(matcher.group(2)) * 1000);
+        long endTimeUtcMillis = (long)(Double.parseDouble(matcher.group(3)) * 1000);
 
         // Find dates with dayBeginUtcMillis and dayEndUtcMillis where
         // (beginTimeUtcMillis < dayEndUtcMillis &&
@@ -222,10 +217,8 @@ public class CalendarKB {
     return s.substring(1, s.length() - 1).replace("\\\"", "\"");
   }
 
-  /**
-   * The Sigma KB given to the constructor.
-   */
   public final KB kb;
+  public final Set<Sentence> sentences_ = new HashSet<>();
   public final Map<String, String> locationIanaTimeZone_ = new HashMap<>();
   public final Map<String, String> itemTermFormatEnglishLanguage_ = new HashMap<>();
   public final Map<String, String> iataAbbreviation_ = new HashMap<>();
