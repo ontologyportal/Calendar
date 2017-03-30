@@ -42,9 +42,18 @@ public class CalendarKB {
   {
     this.kb = kb;
 
+    Pattern predicatePattern = Pattern.compile("^\\(([^ \\)]+)");
+
     // Copy formulas to ABA_Plus sentences.
-    for (String formula : kb.formulaMap.keySet())
-      sentences_.add(new Sentence(formula, false));
+    for (String formula : kb.formulaMap.keySet()) {
+      Matcher matcher = predicatePattern.matcher(formula);
+      if (matcher.find()) {
+        Set<Sentence> sentenceSet = sentencesByPredicate_.get(matcher.group(1));
+        if (sentenceSet == null)
+          sentencesByPredicate_.put(matcher.group(1), (sentenceSet = new HashSet()));
+        sentenceSet.add(new Sentence(formula, false));
+      }
+    }
 
     Set<String> ianaTimeZones = new HashSet<>();
     try (FileReader file = new FileReader(new File(kb.kbDir, "locationIanaTimeZone.kif"));
@@ -142,7 +151,8 @@ public class CalendarKB {
 
       overlapsDate_.clear();
       overlapsDateTimeZone_ = timeZone;
-      for (Sentence sentence : sentences_) {
+      for (Sentence sentence : sentencesByPredicate_.getOrDefault
+           ("equal", emptySentences_)) {
         Matcher matcher = pattern.matcher(sentence.symbol());
         if (!matcher.find())
           continue;
@@ -218,7 +228,7 @@ public class CalendarKB {
   }
 
   public final KB kb;
-  public final Set<Sentence> sentences_ = new HashSet<>();
+  public final Map<String, Set<Sentence>> sentencesByPredicate_ = new HashMap<>();
   public final Map<String, String> locationIanaTimeZone_ = new HashMap<>();
   public final Map<String, String> itemTermFormatEnglishLanguage_ = new HashMap<>();
   public final Map<String, String> iataAbbreviation_ = new HashMap<>();
@@ -227,6 +237,7 @@ public class CalendarKB {
   private final Map<LocalDate, Set<PhysicalTimeInterval>> overlapsDate_ = new HashMap<>();
   private static final Set<PhysicalTimeInterval> emptyPhysicalTimeIntervalSet_ = new HashSet<>();
   private static final Gson gson_ = new Gson();
+  private static final Set<Sentence> emptySentences_ = new HashSet<>();
   private static final Pattern locationIanaTimeZonePattern_ = Pattern.compile
     ("^\\(locationIanaTimeZone (\\w+) (\\w+)\\)$");
   private static final Pattern itemTermFormatEnglishLanguagePattern_ = Pattern.compile
