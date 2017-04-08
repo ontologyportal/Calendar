@@ -81,7 +81,7 @@ public class CalendarKB {
               ianaTimeZones.contains(matcher.group(1))))
           // For now, only use memory to store labels needed for locations.
           continue;
-        String label = gson_.fromJson(matcher.group(2), String.class);
+        String label = removeQuotes(matcher.group(2));
         itemTermFormatEnglishLanguage_.put(matcher.group(1), label);
       }
     }
@@ -94,7 +94,7 @@ public class CalendarKB {
         if (!matcher.find())
           throw new Error("Can't match iataAbbreviation pattern: " + line);
 
-        String abbreviation = gson_.fromJson(matcher.group(1), String.class);
+        String abbreviation = removeQuotes(matcher.group(1));
         iataAbbreviation_.put(matcher.group(2), abbreviation);
       }
     }
@@ -204,11 +204,34 @@ public class CalendarKB {
   }
 
   /**
+   * Find the first Sentence with the given predicate where the given regex
+   * pattern matches and has the given group value.
+   * @param predicate The Sentence predicate.
+   * @param pattern The regex pattern.
+   * @param groupNumber The group number of the matched pattern.
+   * @param group The value of the group of the patched pattern.
+   * @return The regex Matcher object or null if not found.
+   */
+  public Matcher
+  findFirst(String predicate, Pattern pattern, int groupNumber, String group)
+  {
+    for (Sentence sentence : sentencesByPredicate_.getOrDefault
+         (predicate, emptySentences_)) {
+      Matcher matcher = pattern.matcher(sentence.symbol());
+      if (matcher.find() && matcher.group(groupNumber).equals(group))
+        return matcher;
+    }
+
+    return null;
+  }
+
+  /**
    * Get a LocalDate for the calendar year, month and day.
    * @param calendar The Calendar.
    * @return The LocalDate for the calendar.
    */
-  public static LocalDate getCalendarLocalDate(Calendar calendar)
+  public static LocalDate
+  getCalendarLocalDate(Calendar calendar)
   {
     // Calendar months start from 0.
     return LocalDate.of
@@ -217,15 +240,13 @@ public class CalendarKB {
   }
 
   /**
-   * Assume s is a SUMO string with begin and end quotes, so remove them and
-   * unescape inner quotes.
+   * Assume s is a JSON string with begin and end quotes, so remove them and
+   * unescape.
    * @param s The quoted string.
-   * @return The result without quotes.
+   * @return The unescaped result without quotes.
    */
-  public static String removeQuotes(String s)
-  {
-    return s.substring(1, s.length() - 1).replace("\\\"", "\"");
-  }
+  public static String 
+  removeQuotes(String s) { return gson_.fromJson(s, String.class); }
 
   public final KB kb;
   public final Map<String, Set<Sentence>> sentencesByPredicate_ = new HashMap<>();
