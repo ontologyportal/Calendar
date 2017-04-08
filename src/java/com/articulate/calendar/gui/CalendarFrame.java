@@ -33,6 +33,8 @@ import java.util.Locale;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.swing.JList;
 import javax.swing.JScrollPane;
 import org.jdatepicker.impl.JDatePanelImpl;
@@ -196,9 +198,10 @@ public class CalendarFrame extends javax.swing.JFrame {
             // TODO: Check that process is a process in the argument set.
             String process = timeInterval.physical;
 
-            // TODO: Check for empty list.
-            String label = CalendarKB.removeQuotes(calendarKB_.kb.askWithRestriction
-              (0, "documentation", 1, process).get(0).getArgument(3));
+            Matcher labelMatcher = calendarKB_.findFirst
+              ("documentation", documentationEnglishLanguagePattern_, 1, process);
+            String label = labelMatcher == null ? "unnamed"
+              : CalendarKB.removeQuotes(labelMatcher.group(2));
 
             calendar.clear();
             calendar.setTimeInMillis(timeInterval.beginUtcMillis);
@@ -608,6 +611,8 @@ public class CalendarFrame extends javax.swing.JFrame {
     DateTimeFormatter.ofPattern("MMMM y");
   private static final DateTimeFormatter dayOfWeekFormatter_ =
     DateTimeFormatter.ofPattern("EEEE");
+  private static final Pattern documentationEnglishLanguagePattern_ = Pattern.compile
+    ("^\\(documentation (\\w+) EnglishLanguage (\".*\")\\)$");
 }
 
 /**
