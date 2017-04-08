@@ -40,8 +40,6 @@ public class CalendarKB {
    */
   public CalendarKB(KB kb) throws FileNotFoundException, IOException
   {
-    this.kb = kb;
-
     Pattern predicatePattern = Pattern.compile("^\\(([^ \\)]+)");
 
     // Copy formulas to ABA_Plus sentences.
@@ -248,7 +246,6 @@ public class CalendarKB {
   public static String 
   removeQuotes(String s) { return gson_.fromJson(s, String.class); }
 
-  public final KB kb;
   public final Map<String, Set<Sentence>> sentencesByPredicate_ = new HashMap<>();
   public final Map<String, String> locationIanaTimeZone_ = new HashMap<>();
   public final Map<String, String> itemTermFormatEnglishLanguage_ = new HashMap<>();
