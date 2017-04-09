@@ -385,7 +385,7 @@ public class NewEventDialog extends JDialog {
       return null;
     }
 
-    // TODO: If the label is not regognized, the TimeZone is GMT. How to tell the difference?
+    // CalendarKB already checked that the label is not regognized.
     return TimeZone.getTimeZone(locationIanaLabel.replace(" ", "_"));
   }
 
