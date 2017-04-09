@@ -45,7 +45,7 @@ public class CalendarApp {
     ArrayList<String> messages = new ArrayList<>();
     boolean doDump = false;
     if (doDump) {
-      WikidataJava.dumpFromJson("/home/jeff/temp/wikidata-20170313-all.json.gz", dumpDir, messages);
+      WikidataJava.dumpFromJson("/home/jeff/temp/wikidata-20170403-all.json.gz", dumpDir, messages);
       for (String message : messages)
         System.out.println(message);
       if (true) return;
@@ -93,7 +93,7 @@ public class CalendarApp {
 
     KBmanager.getMgr().initializeOnce();
     WordNet.initOnce();
-    CalendarPreferences preferences = new CalendarPreferences();
+    CalendarPreferences preferences = new CalendarPreferences("Jefft0");
 
     CalendarKB calendarKB = new CalendarKB(KBmanager.getMgr().getKB("SUMO"));
     // Pre-cache overlapsDate results now.

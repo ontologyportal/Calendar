@@ -18,6 +18,13 @@ import java.util.TimeZone;
  * @author Jeff Thompson, jeff@thefirst.org
  */
 public class CalendarPreferences {
+  public CalendarPreferences(String username)
+  {
+    username_ = username;
+  }
+
+  public String getUsername() { return username_; }
+
   public TimeZone getTimeZone() { return timeZone_; }
 
   /**
@@ -25,7 +32,8 @@ public class CalendarPreferences {
    * @return The start day as a DayOfWeek.
    */
   public DayOfWeek getStartOfWeek() { return startOfWeek_; }
-  
+
+  private final String username_;
   private TimeZone timeZone_ = TimeZone.getDefault();
   private DayOfWeek startOfWeek_ = DayOfWeek.MONDAY;
 }
