@@ -104,7 +104,7 @@ public class CalendarFrame extends javax.swing.JFrame {
       @Override
       public void actionPerformed(ActionEvent ae) {
         if (ae.getActionCommand().equals("Date selected")) {
-          Calendar calendar = ((Calendar)datePanel_.getModel().getValue());
+          Calendar calendar = (Calendar)datePanel_.getModel().getValue();
           if (calendar != null) {
             // Calendar months start from 0.
             selectedDate_ = LocalDate.of
