@@ -93,7 +93,7 @@ public class CalendarKB {
           throw new Error("Can't match iataAbbreviation pattern: " + line);
 
         String abbreviation = removeQuotes(matcher.group(1));
-        iataAbbreviation_.put(matcher.group(2), abbreviation);
+        iataAbbreviation_.put(abbreviation, matcher.group(2));
       }
     }
 
@@ -246,9 +246,13 @@ public class CalendarKB {
   public static String 
   removeQuotes(String s) { return gson_.fromJson(s, String.class); }
 
+  // key: predicate, value: set of Sentence.
   public final Map<String, Set<Sentence>> sentencesByPredicate_ = new HashMap<>();
+  // key: ID, value: time zone string.
   public final Map<String, String> locationIanaTimeZone_ = new HashMap<>();
+  // key: ID, value: format string.
   public final Map<String, String> itemTermFormatEnglishLanguage_ = new HashMap<>();
+  // key: abbreviation, value: ID.
   public final Map<String, String> iataAbbreviation_ = new HashMap<>();
   
   private TimeZone overlapsDateTimeZone_ = null;

@@ -52,7 +52,7 @@ public class NewEventDialog extends JDialog {
     // Set up the airport IATA code combo boxes.
     List<String> airports = new ArrayList<>();
     airports.add("");
-    for (String airport : calendarKB_.iataAbbreviation_.values())
+    for (String airport : calendarKB_.iataAbbreviation_.keySet())
       airports.add(airport);
     Object[] airportsArray = airports.toArray();
     Arrays.sort(airportsArray);
@@ -344,6 +344,7 @@ public class NewEventDialog extends JDialog {
     p.put("text.month", "Month");
     p.put("text.year", "Year");
     JDatePanelImpl datePanel = new JDatePanelImpl(model, p);
+    // TODO: Fix: The date panel appears far from the date picker.
     JDatePickerImpl datePicker = new JDatePickerImpl
       (datePanel, new DateLabelFormatter());
     datePicker.setLocation(0, 0);
