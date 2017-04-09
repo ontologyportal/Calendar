@@ -246,13 +246,13 @@ public class CalendarKB {
   public static String 
   removeQuotes(String s) { return gson_.fromJson(s, String.class); }
 
-  // key: predicate, value: set of Sentence.
+  /** key: predicate, value: set of Sentence. */
   public final Map<String, Set<Sentence>> sentencesByPredicate_ = new HashMap<>();
-  // key: ID, value: time zone string.
+  /** key: ID, value: time zone string. */
   public final Map<String, String> locationIanaTimeZone_ = new HashMap<>();
-  // key: ID, value: format string.
+  /** key: ID, value: format string. */
   public final Map<String, String> itemTermFormatEnglishLanguage_ = new HashMap<>();
-  // key: abbreviation, value: ID.
+  /** key: abbreviation, value: ID. */
   public final Map<String, String> iataAbbreviation_ = new HashMap<>();
   
   private TimeZone overlapsDateTimeZone_ = null;
