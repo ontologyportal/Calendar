@@ -11,22 +11,30 @@ package com.articulate.calendar.gui;
 
 import com.articulate.calendar.CalendarKB;
 import com.articulate.calendar.CalendarPreferences;
+import com.google.gson.Gson;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.Random;
+import java.util.TimeZone;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JDialog;
 import javax.swing.JFormattedTextField.AbstractFormatter;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import org.jdatepicker.JDatePicker;
 import org.jdatepicker.impl.JDatePanelImpl;
 import org.jdatepicker.impl.JDatePickerImpl;
-import org.jdatepicker.impl.UtilCalendarModel;
+import org.jdatepicker.impl.UtilDateModel;
 
 /**
  *
@@ -38,10 +46,10 @@ public class NewEventDialog extends JDialog {
    * Creates new form NewEventDialog
    */
   public NewEventDialog
-    (java.awt.Frame parent, CalendarKB calendarKB, CalendarPreferences preferences)
+    (java.awt.Frame parent, CalendarKB kb, CalendarPreferences preferences)
   {
     super(parent, true);
-    calendarKB_ = calendarKB;
+    kb_ = kb;
     preferences_ = preferences;
 
     initComponents();
@@ -52,7 +60,7 @@ public class NewEventDialog extends JDialog {
     // Set up the airport IATA code combo boxes.
     List<String> airports = new ArrayList<>();
     airports.add("");
-    for (String airport : calendarKB_.iataAbbreviation_.keySet())
+    for (String airport : kb_.iataAbbreviation_.keySet())
       airports.add(airport);
     Object[] airportsArray = airports.toArray();
     Arrays.sort(airportsArray);
@@ -164,6 +172,8 @@ public class NewEventDialog extends JDialog {
       .addGap(0, 30, Short.MAX_VALUE)
     );
 
+    startTimeText_.setText("12:00");
+
     javax.swing.GroupLayout startTimePanel_Layout = new javax.swing.GroupLayout(startTimePanel_);
     startTimePanel_.setLayout(startTimePanel_Layout);
     startTimePanel_Layout.setHorizontalGroup(
@@ -174,6 +184,8 @@ public class NewEventDialog extends JDialog {
       startTimePanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
       .addComponent(startTimeText_, javax.swing.GroupLayout.DEFAULT_SIZE, 31, Short.MAX_VALUE)
     );
+
+    endTimeText_.setText("12:00");
 
     javax.swing.GroupLayout endTimePanel_Layout = new javax.swing.GroupLayout(endTimePanel_);
     endTimePanel_.setLayout(endTimePanel_Layout);
@@ -273,8 +285,127 @@ public class NewEventDialog extends JDialog {
 
   private void okButton_ActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_okButton_ActionPerformed
   {//GEN-HEADEREND:event_okButton_ActionPerformed
-    Calendar startCalendar = (Calendar)startDatePicker_.getModel().getValue();
+    // Get the start and end date and time.
+    Date startDate = (Date)startDatePicker_.getModel().getValue();
+    Date endDate = (Date)endDatePicker_.getModel().getValue();
+
+    LocalTime startTime, endTime;
+    if (startTimeText_.getText().length() > 2 && startTimeText_.getText().charAt(1) == ':')
+      // LocalTime.parse doesn't like single-digit hours.
+      startTimeText_.setText("0" + startTimeText_.getText());
+    try {
+      startTime = LocalTime.parse(startTimeText_.getText());
+    } catch (DateTimeParseException ex) {
+      JOptionPane.showMessageDialog(this, "Please enter a valid start time");
+      startTimeText_.requestFocus();
+      return;
+    }
+
+    if (endTimeText_.getText().length() > 2 && endTimeText_.getText().charAt(1) == ':')
+      // LocalTime.parse doesn't like single-digit hours.
+      endTimeText_.setText("0" + endTimeText_.getText());
+    try {
+      endTime = LocalTime.parse(endTimeText_.getText());
+    } catch (DateTimeParseException ex) {
+      JOptionPane.showMessageDialog(this, "Please enter a valid end time");
+      endTimeText_.requestFocus();
+      return;
+    }
+
+    // Get the time zones at the start and end locations.
+    String fromAirportIata = (String)fromAirportComboBox_.getSelectedItem();
+    if (fromAirportIata.equals("")) {
+      JOptionPane.showMessageDialog(this, "Please select a From airport");
+      fromAirportComboBox_.requestFocus();
+      return;
+    }
+    String toAirportIata = (String)toAirportComboBox_.getSelectedItem();
+    if (toAirportIata.equals("")) {
+      JOptionPane.showMessageDialog(this, "Please select a To airport");
+      toAirportComboBox_.requestFocus();
+      return;
+    }
+
+    TimeZone startTimeZone = airportIataToTimeZone(fromAirportIata);
+    if (startTimeZone == null)
+      // Already showed the error.
+      return;
+    TimeZone endTimeZone = airportIataToTimeZone(toAirportIata);
+    if (endTimeZone == null)
+      // Already showed the error.
+      return;
+
+    // Get the UTC start and end times.
+    long startMillis = toUtcMillis(startTimeZone, startDate, startTime);
+    long endMillis = toUtcMillis(endTimeZone, endDate, endTime);
+
+    if (endMillis < startMillis) {
+      JOptionPane.showMessageDialog(this, "Error: The end time is before the start time");
+      return;
+    }
+
+    // Create the event.
+    String eventClass = "Trip";
+    // TODO: Make sure this is unique.
+    String eventId = eventClass + "_" + preferences_.getUsername() + "_" +
+      new SimpleDateFormat("yyyyMMdd_HHmmss").format(startMillis) + "_" +
+      random_.nextInt(1000);
+    System.out.println("");
+    System.out.println("(instance " + eventId + " " + eventClass + ")");
+    System.out.println("(documentation " + eventId + " EnglishLanguage " + gson_.toJson(eventLabelText_.getText()) + ")");
+    System.out.println("(equal (WhenFn " + eventId + ") (TimeIntervalFn (SecondsSinceUnixEpochFn " + startMillis / 1000 +
+      ") (SecondsSinceUnixEpochFn " + endMillis / 1000 + ")))");
+    System.out.println("(experiencer " + eventId + " " + preferences_.getUsername() + ")");
+    System.out.println("(origin " + eventId + " " + kb_.iataAbbreviation_.get(fromAirportIata) + ")");
+    System.out.println("(destination " + eventId + " " + kb_.iataAbbreviation_.get(toAirportIata) + ")");
   }//GEN-LAST:event_okButton_ActionPerformed
+
+  private TimeZone
+  airportIataToTimeZone(String airportIata)
+  {
+    String airportId = kb_.iataAbbreviation_.getOrDefault(airportIata, null);
+    if (airportId == null) {
+      JOptionPane.showMessageDialog(this, "Unrecognized airport code " + airportIata);
+      return null;
+    }
+
+    String locationIanaId = kb_.locationIanaTimeZone_.getOrDefault(airportId, null);
+    if (locationIanaId == null) {
+      JOptionPane.showMessageDialog
+        (this, "Can't find location time zone for " + airportIata);
+      return null;
+    }
+
+    String locationIanaLabel = kb_.itemTermFormatEnglishLanguage_.getOrDefault
+      (locationIanaId, null);
+    if (locationIanaLabel == null) {
+      // We don't expect this error.
+      JOptionPane.showMessageDialog
+        (this, "Can't find label for time zone " + locationIanaId);
+      return null;
+    }
+
+    // TODO: If the label is not regognized, the TimeZone is GMT. How to tell the difference?
+    return TimeZone.getTimeZone(locationIanaLabel.replace(" ", "_"));
+  }
+
+  /**
+   * Use the timeZone to convert the date and time to UTC millis.
+   * @param timeZone The TimeZone object.
+   * @param date The date. This ignores the hour/minute/second and time zone
+   * fields.
+   * @param time The time.
+   * @return The milliseconds since January 1, 1970 UTC.
+   */
+  private static long
+  toUtcMillis(TimeZone timeZone, Date date, LocalTime time)
+  {
+    Calendar calendar = Calendar.getInstance(timeZone);
+    calendar.set
+      (1900 + date.getYear(), date.getMonth(), date.getDate(),
+       time.getHour(), time.getMinute(), time.getSecond());
+    return calendar.getTimeInMillis();
+  }
 
   private void cancelButton_ActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_cancelButton_ActionPerformed
   {//GEN-HEADEREND:event_cancelButton_ActionPerformed
@@ -336,13 +467,12 @@ public class NewEventDialog extends JDialog {
   JDatePicker
   makeDatePicker(JPanel panel)
   {
-    Locale locale = Locale.getDefault();
-    Calendar calendar = Calendar.getInstance(preferences_.getTimeZone(), locale);
-    UtilCalendarModel model = new UtilCalendarModel(calendar);
     Properties p = new Properties();
     p.put("text.today", "Today");
     p.put("text.month", "Month");
     p.put("text.year", "Year");
+    UtilDateModel model = new UtilDateModel();
+    model.setValue(new Date());
     JDatePanelImpl datePanel = new JDatePanelImpl(model, p);
     // TODO: Fix: The date panel appears far from the date picker.
     JDatePickerImpl datePicker = new JDatePickerImpl
@@ -355,19 +485,19 @@ public class NewEventDialog extends JDialog {
   }
 
   private static class DateLabelFormatter extends AbstractFormatter {
-    private String datePattern = "yyyy-MM-dd";
-    private SimpleDateFormat dateFormatter = new SimpleDateFormat(datePattern);
+    private static final SimpleDateFormat dateFormatter_ =
+      new SimpleDateFormat("yyyy-MM-dd");
 
     @Override
     public Object stringToValue(String text) throws ParseException {
-        return dateFormatter.parseObject(text);
+        return dateFormatter_.parseObject(text);
     }
 
     @Override
     public String valueToString(Object value) throws ParseException {
         if (value != null) {
             Calendar cal = (Calendar)value;
-            return dateFormatter.format(cal.getTime());
+            return dateFormatter_.format(cal.getTime());
         }
 
         return "";
@@ -393,8 +523,10 @@ public class NewEventDialog extends JDialog {
   private javax.swing.JComboBox<String> toAirportComboBox_;
   private javax.swing.JLabel toLabel_;
   // End of variables declaration//GEN-END:variables
-  private final CalendarKB calendarKB_;
+  private final CalendarKB kb_;
   private final CalendarPreferences preferences_;
-  private JDatePicker startDatePicker_;
-  private JDatePicker endDatePicker_;
+  private final JDatePicker startDatePicker_;
+  private final JDatePicker endDatePicker_;
+  private static final Gson gson_ = new Gson();
+  private static final Random random_ = new Random();
 }
