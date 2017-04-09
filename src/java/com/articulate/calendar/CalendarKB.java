@@ -18,9 +18,11 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
@@ -67,6 +69,7 @@ public class CalendarKB {
       }
     }
 
+    List<String> timeZones = Arrays.asList(TimeZone.getAvailableIDs());
     try (FileReader file = new FileReader(new File(kb.kbDir, "itemTermFormatEnglishLanguage.kif"));
          BufferedReader reader = new BufferedReader(file)) {
       String line;
@@ -79,7 +82,12 @@ public class CalendarKB {
               ianaTimeZones.contains(matcher.group(1))))
           // For now, only use memory to store labels needed for locations.
           continue;
+
         String label = removeQuotes(matcher.group(2));
+        if (ianaTimeZones.contains(matcher.group(1)) &&
+            !timeZones.contains(label.replace(" ", "_")))
+          throw new Error("TimeZone " + matcher.group(1) + " has unrecognized label: " + label);
+
         itemTermFormatEnglishLanguage_.put(matcher.group(1), label);
       }
     }
