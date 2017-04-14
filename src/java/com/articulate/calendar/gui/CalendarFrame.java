@@ -573,7 +573,7 @@ public class CalendarFrame extends javax.swing.JFrame {
       public void run()
       {
         new CalendarFrame
-          (new CalendarPreferences(), null).setVisible(true);
+          (new CalendarPreferences(""), null).setVisible(true);
       }
     });
   }
