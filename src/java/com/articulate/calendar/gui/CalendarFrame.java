@@ -14,6 +14,7 @@ import com.articulate.calendar.CalendarKB;
 import com.articulate.calendar.CalendarKB.PhysicalTimeInterval;
 import com.articulate.calendar.CalendarPreferences;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Container;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
@@ -35,7 +36,9 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.swing.JComponent;
 import javax.swing.JList;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import org.jdatepicker.impl.JDatePanelImpl;
 import org.jdatepicker.impl.UtilCalendarModel;
@@ -64,7 +67,7 @@ public class CalendarFrame extends javax.swing.JFrame {
       daysPanelGrid_.add(week);
 
       for (int iDay = 0; iDay < 7; ++iDay) {
-        DayPanel dayPanel = new DayPanel();
+        DayPanel dayPanel = new DayPanel(dayPopupMenu_);
         week.add(dayPanel);
         dayPanel.addTo(daysPanel_);
       }
@@ -274,6 +277,8 @@ public class CalendarFrame extends javax.swing.JFrame {
   private void initComponents()
   {
 
+    dayPopupMenu_ = new javax.swing.JPopupMenu();
+    newEventMenuItem_ = new javax.swing.JMenuItem();
     topHorizontalSplitPane_ = new javax.swing.JSplitPane();
     calendarControlsPanel_ = new javax.swing.JPanel();
     calendarAndTasksHorizontalSplitPane_ = new javax.swing.JSplitPane();
@@ -285,10 +290,19 @@ public class CalendarFrame extends javax.swing.JFrame {
     incrementButton_ = new javax.swing.JButton();
     daysPanel_ = new javax.swing.JPanel();
     daysPanelLabel_ = new javax.swing.JLabel();
-    jButton1 = new javax.swing.JButton();
     eventsPanel_ = new javax.swing.JPanel();
     eventsScrollPane_ = new javax.swing.JScrollPane();
     eventsList_ = new javax.swing.JList<>();
+
+    newEventMenuItem_.setText("New Event...");
+    newEventMenuItem_.addActionListener(new java.awt.event.ActionListener()
+    {
+      public void actionPerformed(java.awt.event.ActionEvent evt)
+      {
+        newEventMenuItem_ActionPerformed(evt);
+      }
+    });
+    dayPopupMenu_.add(newEventMenuItem_);
 
     setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -384,15 +398,6 @@ public class CalendarFrame extends javax.swing.JFrame {
     daysPanelLabel_.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
     daysPanelLabel_.setText("September 2016");
 
-    jButton1.setText("New Event");
-    jButton1.addActionListener(new java.awt.event.ActionListener()
-    {
-      public void actionPerformed(java.awt.event.ActionEvent evt)
-      {
-        jButton1ActionPerformed(evt);
-      }
-    });
-
     javax.swing.GroupLayout calendarPanel_Layout = new javax.swing.GroupLayout(calendarPanel_);
     calendarPanel_.setLayout(calendarPanel_Layout);
     calendarPanel_Layout.setHorizontalGroup(
@@ -406,9 +411,7 @@ public class CalendarFrame extends javax.swing.JFrame {
         .addComponent(incrementButton_)
         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
         .addComponent(daysPanelLabel_, javax.swing.GroupLayout.PREFERRED_SIZE, 151, javax.swing.GroupLayout.PREFERRED_SIZE)
-        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-        .addComponent(jButton1)
-        .addContainerGap(235, Short.MAX_VALUE))
+        .addContainerGap(355, Short.MAX_VALUE))
       .addComponent(daysPanel_, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
     );
     calendarPanel_Layout.setVerticalGroup(
@@ -419,8 +422,7 @@ public class CalendarFrame extends javax.swing.JFrame {
           .addComponent(decrementButton_)
           .addComponent(todayButton_)
           .addComponent(incrementButton_)
-          .addComponent(daysPanelLabel_, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
-          .addComponent(jButton1))
+          .addComponent(daysPanelLabel_, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE))
         .addGap(27, 27, 27)
         .addComponent(daysPanel_, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
     );
@@ -535,10 +537,10 @@ public class CalendarFrame extends javax.swing.JFrame {
       calendarAndTasksHorizontalSplitPane_.getSize().width;
   }//GEN-LAST:event_calendarAndTasksHorizontalSplitPane_ComponentResized
 
-  private void jButton1ActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_jButton1ActionPerformed
-  {//GEN-HEADEREND:event_jButton1ActionPerformed
-    new NewEventDialog(this, calendarKB_, preferences_).setVisible(true);
-  }//GEN-LAST:event_jButton1ActionPerformed
+  private void newEventMenuItem_ActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_newEventMenuItem_ActionPerformed
+  {//GEN-HEADEREND:event_newEventMenuItem_ActionPerformed
+    new NewEventDialog(this, calendarKB_, preferences_, selectedDate_).setVisible(true);
+  }//GEN-LAST:event_newEventMenuItem_ActionPerformed
 
   /**
    * @param args the command line arguments
@@ -582,6 +584,7 @@ public class CalendarFrame extends javax.swing.JFrame {
   private javax.swing.JSplitPane calendarAndTasksHorizontalSplitPane_;
   private javax.swing.JPanel calendarControlsPanel_;
   private javax.swing.JPanel calendarPanel_;
+  private javax.swing.JPopupMenu dayPopupMenu_;
   private javax.swing.JLabel daysPanelLabel_;
   private javax.swing.JPanel daysPanel_;
   private javax.swing.JButton decrementButton_;
@@ -590,7 +593,7 @@ public class CalendarFrame extends javax.swing.JFrame {
   private javax.swing.JPanel eventsPanel_;
   private javax.swing.JScrollPane eventsScrollPane_;
   private javax.swing.JButton incrementButton_;
-  private javax.swing.JButton jButton1;
+  private javax.swing.JMenuItem newEventMenuItem_;
   private javax.swing.JPanel tasksPanel_;
   private javax.swing.JButton todayButton_;
   private javax.swing.JSplitPane topHorizontalSplitPane_;
@@ -619,9 +622,10 @@ public class CalendarFrame extends javax.swing.JFrame {
  * A DayPanel holds the main panel for a day plus its contained components.
  */
 class DayPanel {
-  public DayPanel()
+  public DayPanel(JPopupMenu popupMenu)
   {
     panel_.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+    panel_.setComponentPopupMenu(popupMenu);
 
     final int labelHeight = 20;
     dayLabel_.setForeground(new Color(100, 100, 100));
@@ -632,7 +636,26 @@ class DayPanel {
     scrollPane_.setBorder(BorderFactory.createEmptyBorder());
     scrollPane_.setViewportView(entries_);
     scrollPane_.setLocation(0, dayLabel_.getLocation().y + labelHeight);
+    scrollPane_.getViewport().setInheritsPopupMenu(true);
     panel_.add(scrollPane_);
+
+    setChildrenInheritsPopupMenu(panel_, true);
+  }
+
+  /**
+   * Recursively call setInheritsPopupMenu(value) on all children of component.
+   */
+  public static void
+  setChildrenInheritsPopupMenu(JComponent component, boolean value)
+  {
+    for (Component child : component.getComponents()) {
+      if (child instanceof JComponent) {
+        JComponent jChild = (JComponent)child;
+        ((JComponent) child).setInheritsPopupMenu(value);
+
+        setChildrenInheritsPopupMenu(jChild, value);
+      }
+    }
   }
 
   public static class Entry implements Comparable<Entry> {
