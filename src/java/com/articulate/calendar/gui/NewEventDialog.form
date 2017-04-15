@@ -41,13 +41,13 @@
     <DimensionLayout dim="0">
       <Group type="103" groupAlignment="0" attributes="0">
           <Group type="102" attributes="0">
-              <Group type="103" groupAlignment="0" attributes="0">
+              <Group type="103" groupAlignment="0" max="-2" attributes="0">
                   <Group type="102" attributes="0">
                       <Group type="103" groupAlignment="1" attributes="0">
                           <Group type="102" attributes="0">
                               <Component id="fromLabel_2" min="-2" pref="51" max="-2" attributes="0"/>
                               <EmptySpace min="-2" pref="5" max="-2" attributes="0"/>
-                              <Component id="endDatePanel_" min="-2" pref="114" max="-2" attributes="0"/>
+                              <Component id="endDatePanel_" min="-2" pref="116" max="-2" attributes="0"/>
                           </Group>
                           <Component id="okButton_" min="-2" max="-2" attributes="0"/>
                       </Group>
@@ -77,19 +77,14 @@
                           <Component id="jLabel1" min="-2" max="-2" attributes="0"/>
                           <Component id="fromLabel_1" min="-2" pref="51" max="-2" attributes="0"/>
                       </Group>
+                      <EmptySpace min="-2" pref="5" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="0" attributes="0">
-                          <Group type="102" attributes="0">
-                              <EmptySpace min="-2" pref="5" max="-2" attributes="0"/>
-                              <Component id="startDatePanel_" min="-2" pref="114" max="-2" attributes="0"/>
-                          </Group>
-                          <Group type="102" alignment="0" attributes="0">
-                              <EmptySpace max="-2" attributes="0"/>
-                              <Component id="eventLabelText_" min="-2" pref="393" max="-2" attributes="0"/>
-                          </Group>
+                          <Component id="startDatePanel_" min="-2" pref="116" max="-2" attributes="0"/>
+                          <Component id="eventLabelText_" max="32767" attributes="0"/>
                       </Group>
                   </Group>
               </Group>
-              <EmptySpace pref="27" max="32767" attributes="0"/>
+              <EmptySpace pref="30" max="32767" attributes="0"/>
           </Group>
       </Group>
     </DimensionLayout>
@@ -185,7 +180,7 @@
       <Layout>
         <DimensionLayout dim="0">
           <Group type="103" groupAlignment="0" attributes="0">
-              <EmptySpace min="0" pref="114" max="32767" attributes="0"/>
+              <EmptySpace min="0" pref="116" max="32767" attributes="0"/>
           </Group>
         </DimensionLayout>
         <DimensionLayout dim="1">
@@ -233,7 +228,7 @@
       <Layout>
         <DimensionLayout dim="0">
           <Group type="103" groupAlignment="0" attributes="0">
-              <EmptySpace min="0" pref="114" max="32767" attributes="0"/>
+              <EmptySpace min="0" pref="116" max="32767" attributes="0"/>
           </Group>
         </DimensionLayout>
         <DimensionLayout dim="1">

@@ -14,8 +14,9 @@ import com.articulate.calendar.CalendarPreferences;
 import com.google.gson.Gson;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,7 +47,8 @@ public class NewEventDialog extends JDialog {
    * Creates new form NewEventDialog
    */
   public NewEventDialog
-    (java.awt.Frame parent, CalendarKB kb, CalendarPreferences preferences)
+    (java.awt.Frame parent, CalendarKB kb, CalendarPreferences preferences,
+     LocalDate initialDate)
   {
     super(parent, true);
     kb_ = kb;
@@ -56,6 +58,11 @@ public class NewEventDialog extends JDialog {
 
     startDatePicker_ = makeDatePicker(startDatePanel_);
     endDatePicker_ = makeDatePicker(endDatePanel_);
+    ((UtilDateModel)startDatePicker_.getModel()).setValue
+      (new Date(initialDate.getYear() - 1900, initialDate.getMonthValue() - 1,
+                initialDate.getDayOfMonth()));
+    ((UtilDateModel)endDatePicker_.getModel()).setValue
+      ((Date)startDatePicker_.getModel().getValue());
 
     // Set up the airport IATA code combo boxes.
     List<String> airports = new ArrayList<>();
@@ -66,13 +73,6 @@ public class NewEventDialog extends JDialog {
     Arrays.sort(airportsArray);
     fromAirportComboBox_.setModel(new DefaultComboBoxModel(airportsArray));
     toAirportComboBox_.setModel(new DefaultComboBoxModel(airportsArray));
-
-    Locale locale = Locale.getDefault();
-    Calendar calendar = Calendar.getInstance(preferences_.getTimeZone(), locale);
-    calendar.clear();
-    // Calendar object: months start at 0.
-    calendar.set(2016, 10 - 1, 14, 12, 40);
-    long utcMillis = calendar.getTimeInMillis();
   }
 
   /**
@@ -128,7 +128,7 @@ public class NewEventDialog extends JDialog {
     startDatePanel_.setLayout(startDatePanel_Layout);
     startDatePanel_Layout.setHorizontalGroup(
       startDatePanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGap(0, 114, Short.MAX_VALUE)
+      .addGap(0, 116, Short.MAX_VALUE)
     );
     startDatePanel_Layout.setVerticalGroup(
       startDatePanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -165,7 +165,7 @@ public class NewEventDialog extends JDialog {
     endDatePanel_.setLayout(endDatePanel_Layout);
     endDatePanel_Layout.setHorizontalGroup(
       endDatePanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-      .addGap(0, 114, Short.MAX_VALUE)
+      .addGap(0, 116, Short.MAX_VALUE)
     );
     endDatePanel_Layout.setVerticalGroup(
       endDatePanel_Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -208,13 +208,13 @@ public class NewEventDialog extends JDialog {
     layout.setHorizontalGroup(
       layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
       .addGroup(layout.createSequentialGroup()
-        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
           .addGroup(layout.createSequentialGroup()
             .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
               .addGroup(layout.createSequentialGroup()
                 .addComponent(fromLabel_2, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(5, 5, 5)
-                .addComponent(endDatePanel_, javax.swing.GroupLayout.PREFERRED_SIZE, 114, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addComponent(endDatePanel_, javax.swing.GroupLayout.PREFERRED_SIZE, 116, javax.swing.GroupLayout.PREFERRED_SIZE))
               .addComponent(okButton_))
             .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
             .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
@@ -235,14 +235,11 @@ public class NewEventDialog extends JDialog {
             .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
               .addComponent(jLabel1)
               .addComponent(fromLabel_1, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE))
+            .addGap(5, 5, 5)
             .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-              .addGroup(layout.createSequentialGroup()
-                .addGap(5, 5, 5)
-                .addComponent(startDatePanel_, javax.swing.GroupLayout.PREFERRED_SIZE, 114, javax.swing.GroupLayout.PREFERRED_SIZE))
-              .addGroup(layout.createSequentialGroup()
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(eventLabelText_, javax.swing.GroupLayout.PREFERRED_SIZE, 393, javax.swing.GroupLayout.PREFERRED_SIZE)))))
-        .addContainerGap(27, Short.MAX_VALUE))
+              .addComponent(startDatePanel_, javax.swing.GroupLayout.PREFERRED_SIZE, 116, javax.swing.GroupLayout.PREFERRED_SIZE)
+              .addComponent(eventLabelText_))))
+        .addContainerGap(30, Short.MAX_VALUE))
     );
     layout.setVerticalGroup(
       layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -446,7 +443,7 @@ public class NewEventDialog extends JDialog {
       public void run()
       {
         NewEventDialog dialog = new NewEventDialog
-          (new javax.swing.JFrame(), null, null);
+          (new javax.swing.JFrame(), null, null, LocalDate.now());
         dialog.addWindowListener(new java.awt.event.WindowAdapter() {
           @Override
           public void windowClosing(java.awt.event.WindowEvent e)
@@ -478,7 +475,7 @@ public class NewEventDialog extends JDialog {
     JDatePickerImpl datePicker = new JDatePickerImpl
       (datePanel, new DateLabelFormatter());
     datePicker.setLocation(0, 0);
-    datePicker.setSize(panel.getSize().width, panel.getSize().width);
+    datePicker.setSize(panel.getSize().width, panel.getSize().height);
     panel.add(datePicker);
 
     return datePicker;
